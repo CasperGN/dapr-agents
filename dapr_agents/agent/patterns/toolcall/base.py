@@ -108,6 +108,8 @@ class ToolCallAgent(AgentBase):
                 response_message = response.get_message()
                 self.text_formatter.print_message(response_message)
 
+                logger.info(f"######## Response msg: {response.get_message()}")
+
                 if response.get_reason() == "tool_calls":
                     logger.info(f"########### Updating content: {response.get_content()}")
                     self.tool_history.append(response_message)
