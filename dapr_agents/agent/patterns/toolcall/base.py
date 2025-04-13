@@ -115,7 +115,7 @@ class ToolCallAgent(AgentBase):
                     self.memory.add_message(AssistantMessage(response.get_content()))
                     self.tool_history.clear()
                     return response.get_content()
-            except AgentToolExecutorError as e:
+            except (AgentToolExecutorError, AgentError) as e:
                 # This error is fine, we need to iterate again
                 logger.info(f"Iterating again after tool executor error: {e}")
                 logger.info(f"Tool history: {self.tool_history}")
