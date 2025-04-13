@@ -130,6 +130,7 @@ class AgentTool(BaseModel):
         try:
             func = self.func or self._run
             kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
+            logger.info(f"############## Running tool '{self.name}' with args: {kwargs}")
             return await func(**kwargs) if self._is_async else func(**kwargs)
         except Exception as e:
             self._log_and_raise_error(e)
