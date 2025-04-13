@@ -366,6 +366,7 @@ class MCPClient(BaseModel):
                     text_contents.append(content.text)
             
             # Return single string if only one content item
+            logger.info(f"Tool result content: {text_contents}")
             if len(text_contents) == 1:
                 return text_contents[0]
             elif text_contents:
