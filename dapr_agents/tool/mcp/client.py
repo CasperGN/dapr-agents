@@ -336,6 +336,8 @@ class MCPClient(BaseModel):
             except Exception as e:
                 logger.warning(f"Failed to create schema for tool '{tool_name}': {str(e)}")
 
+        logger.info(f"############### Args model for tool '{tool_name}': {args_model}")
+
         return AgentTool(
             name=tool_name,
             description=tool_docs,
