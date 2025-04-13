@@ -118,6 +118,8 @@ class ToolCallAgent(AgentBase):
             except AgentToolExecutorError as e:
                 # This error is fine, we need to iterate again
                 logger.info(f"Iterating again after tool executor error: {e}")
+                logger.info(f"Tool history: {self.tool_history}")
+                logger.info(f"Messages: {messages}")
                 continue
             except Exception as e:
                 logger.error(f"Error during chat generation: {e}")
