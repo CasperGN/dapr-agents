@@ -331,6 +331,7 @@ class MCPClient(BaseModel):
                 args_model = create_pydantic_model_from_schema(
                     mcp_tool.inputSchema, f"{tool_name}Args"
                 )
+                logger.info(f"########### Generated argument model for tool '{tool_name}'")
                 logger.debug(f"Generated argument model for tool '{tool_name}'")
             except Exception as e:
                 logger.warning(f"Failed to create schema for tool '{tool_name}': {str(e)}")
