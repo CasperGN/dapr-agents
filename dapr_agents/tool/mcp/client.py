@@ -367,7 +367,7 @@ class MCPClient(BaseModel):
                         error_message = content.text
                         # This is not a real error, we just feed back the error from the tool
                         # to the model for iterating again
-                        logger.info(f"MCP tool error thrown, returning result: {result}")
+                        logger.info(f"MCP tool error thrown, returning result: {result.content}")
                         return result.content
             raise ToolError(f"MCP tool error: {error_message}")
         

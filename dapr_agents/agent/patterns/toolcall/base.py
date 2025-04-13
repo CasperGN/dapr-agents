@@ -112,6 +112,7 @@ class ToolCallAgent(AgentBase):
                     self.tool_history.append(response_message)
                     await self.process_response(response.get_tool_calls())
                 else:
+                    logger.info(f"########### Updating content: {response.get_content()}")
                     self.memory.add_message(AssistantMessage(response.get_content()))
                     self.tool_history.clear()
                     return response.get_content()
