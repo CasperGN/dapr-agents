@@ -360,6 +360,7 @@ class MCPClient(BaseModel):
         """
         # Handle error result
         if hasattr(result, 'isError') and result.isError:
+            logger.info(f"################ Result is: {result}")
             error_message = "Unknown error"
             if hasattr(result, 'content') and result.content:
                 for content in result.content:
