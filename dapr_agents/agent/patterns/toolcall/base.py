@@ -4,6 +4,8 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import Field, ConfigDict
 import logging
 
+from dapr_agents.types.exceptions import AgentToolExecutorError
+
 logger = logging.getLogger(__name__)
 
 class ToolCallAgent(AgentBase):
@@ -113,6 +115,10 @@ class ToolCallAgent(AgentBase):
                     self.memory.add_message(AssistantMessage(response.get_content()))
                     self.tool_history.clear()
                     return response.get_content()
+            except AgentToolExecutorError as e:
+                # This error is fine, we need to iterate again
+                logger.info(f"Iterating again after tool executor error: {e}")
+                continue
             except Exception as e:
                 logger.error(f"Error during chat generation: {e}")
                 raise AgentError(f"Failed during chat generation: {e}") from e
