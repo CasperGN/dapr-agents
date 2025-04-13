@@ -119,6 +119,8 @@ class ToolCallAgent(AgentBase):
                 # This error is fine, we need to iterate again
                 logger.info(f"########### Tool history: {self.tool_history}")
                 logger.info(f"######## Response msg: {response.get_message()}")
+                logger.info(f"######## Response content: {response.get_content()}")
+                self.memory.add_message(AssistantMessage(response.get_content()))
                 continue
 
 
