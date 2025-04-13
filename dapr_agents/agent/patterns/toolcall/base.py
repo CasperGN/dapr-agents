@@ -118,22 +118,25 @@ class ToolCallAgent(AgentBase):
             except (AgentToolExecutorError, AgentError) as e:
                 # This error is fine, we need to iterate again
 
+                logger.info(f"Iterating again after tool executor error: {e}")
+                logger.info(f"Tool history: {self.tool_history}")
+                logger.info(f"Messages: {messages}")
+
+                logger.info(f"######## Response msg: {response.get_message()}")
                 response_message = response.get_message()
                 self.text_formatter.print_message(response_message)
-
+                
+                logger.info(f"######## Response reason: {response.get_reason()}")
                 if response.get_reason() == "tool_calls":
                     self.tool_history.append(response_message)
+                    logger.info(f"######## Response tool calls: {response.get_tool_calls()}")
                     await self.process_response(response.get_tool_calls())
                 else:
                     self.memory.add_message(AssistantMessage(response.get_content()))
                     self.tool_history.clear()
                     return response.get_content()
 
-                logger.info(f"######## Response msg: {response.get_message()}")
-                logger.info(f"######## Response tool calls: {response.get_tool_calls()}")
-                logger.info(f"Iterating again after tool executor error: {e}")
-                logger.info(f"Tool history: {self.tool_history}")
-                logger.info(f"Messages: {messages}")
+
                 continue
             except Exception as e:
                 logger.error(f"Error during chat generation: {e}")
