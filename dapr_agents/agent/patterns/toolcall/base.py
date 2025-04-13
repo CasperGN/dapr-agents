@@ -109,7 +109,10 @@ class ToolCallAgent(AgentBase):
                 self.text_formatter.print_message(response_message)
 
                 if response.get_reason() == "tool_calls":
+                    logger.info(f"########### Updating content: {response.get_content()}")
                     self.tool_history.append(response_message)
+                    if response.get_content():
+                        self.memory.add_message(AssistantMessage(response.get_content()))
                     await self.process_response(response.get_tool_calls())
                 else:
                     logger.info(f"########### Updating content: {response.get_content()}")
