@@ -117,9 +117,14 @@ class ToolCallAgent(AgentBase):
                     return response.get_content()
             except (AgentToolExecutorError, AgentError) as e:
                 # This error is fine, we need to iterate again
+                logger.info(f"########### Tool history: {self.tool_history}")
+                self.tool_history.append(response_message)
+                logger.info(f"########### Tool history: {self.tool_history}")
+                continue
+
 
                 logger.info(f"Iterating again after tool executor error: {e}")
-                logger.info(f"Tool history: {self.tool_history}")
+                logger.info(f"########### Tool history: {self.tool_history}")
                 logger.info(f"Messages: {messages}")
 
                 logger.info(f"######## Response msg: {response.get_message()}")
