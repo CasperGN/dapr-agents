@@ -112,7 +112,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
         input_strings = [input] if single_input else input
 
         # Tokenize the input strings to check for long texts requiring chunking
-        tokenized_inputs = [self._tokenize_text(q) for q in input_strings]
+        tokenized_inputs = [self._tokenize_text(str(q)) for q in input_strings]
         chunks = []  # Holds text chunks for API calls
         chunk_indices = []  # Maps each chunk to its original input index
 

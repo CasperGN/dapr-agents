@@ -29,7 +29,7 @@ class PyMuPDFReader(ReaderBase):
                 "PyMuPDF library is not installed. Install it using `pip install pymupdf`."
             )
 
-        file_path = str(file_path)
+        file_path = Path(str(file_path))
         doc = pymupdf.open(file_path)
         total_pages = len(doc)
         documents = []
