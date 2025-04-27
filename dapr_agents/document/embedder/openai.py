@@ -16,6 +16,8 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
     Inherits functionality from OpenAIEmbeddingClient for API interactions.
     """
 
+    encoder: Encoding = tiktoken.encoding_for_model("text-embedding-ada-002")
+
     max_tokens: int = Field(
         default=8191, description="Maximum tokens allowed per input."
     )
@@ -28,7 +30,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
     encoding_name: Optional[str] = Field(
         default=None, description="Token encoding name (if provided)."
     )
-    encoder: Encoding = Field(init=False, description="TikToken Encoder")
+    encoder: Encoding = Field(default=encoder, init=False, description="TikToken Encoder")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -146,7 +148,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
                 ]
                 results += self._process_embeddings([embeddings], weights)
 
-        return results
+        return [results]
 
     def __call__(
         self, input: Union[str, List[str]]
