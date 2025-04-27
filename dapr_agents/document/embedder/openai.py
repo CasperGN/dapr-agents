@@ -146,8 +146,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
                 ]
                 results.append(self._process_embeddings(embeddings, weights))
 
-        # Return a single embedding if the input was a single string; otherwise, return a list
-        return results[0] if single_input else results
+        return results
 
     def __call__(
         self, input: Union[str, List[str]]
