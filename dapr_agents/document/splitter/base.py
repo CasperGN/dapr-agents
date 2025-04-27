@@ -6,10 +6,7 @@ import re
 import logging
 from nltk.tokenize import sent_tokenize
 
-    NLTK_AVAILABLE = True
-except ImportError:
-    sent_tokenize = None
-    NLTK_AVAILABLE = False
+NLTK_AVAILABLE = True
 
 logger = logging.getLogger(__name__)
 
