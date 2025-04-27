@@ -89,8 +89,7 @@ class SentenceTransformerEmbedder(EmbedderBase):
         if not input or (isinstance(input, list) and all(not q for q in input)):
             raise ValueError("Input must contain valid text.")
 
-        single_input = isinstance(input, str)
-        input_strings = [input] if single_input else input
+        input_strings: list[str] = [input] if isinstance(input, str) else input
 
         logger.info(f"Generating embeddings for {len(input_strings)} input(s).")
 
