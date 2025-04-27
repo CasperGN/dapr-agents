@@ -30,9 +30,8 @@ class SentenceTransformerEmbedder(EmbedderBase):
     cache_dir: Optional[str] = Field(
         default=None, description="Directory to cache or load the model."
     )
-
-    client: Optional[Any] = Field(
-        default=None, init=False, description="Loaded SentenceTransformer model."
+    client: SentenceTransformer = Field(
+        init=False, description="Loaded SentenceTransformer model."
     )
 
     def model_post_init(self, __context: Any) -> None:
