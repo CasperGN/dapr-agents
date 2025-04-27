@@ -2,6 +2,7 @@ from dapr_agents.document.reader.base import ReaderBase
 from dapr_agents.types.document import Document
 from typing import List, Dict, Optional
 from pathlib import Path
+import pymupdf
 
 
 class PyMuPDFReader(ReaderBase):
