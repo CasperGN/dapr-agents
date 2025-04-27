@@ -1,7 +1,7 @@
 from dapr_agents.document.embedder.base import EmbedderBase
 from typing import List, Any, Optional, Union, Literal
 from sentence_transformers import SentenceTransformer
-from pydantic import Field
+from pydantic import ConfigDict, Field
 import logging
 import os
 
@@ -13,6 +13,8 @@ class SentenceTransformerEmbedder(EmbedderBase):
     SentenceTransformer-based embedder for generating text embeddings.
     Supports multi-process encoding for large datasets.
     """
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    client: SentenceTransformer = SentenceTransformer()
 
     model: str = Field(
         default="all-MiniLM-L6-v2",
@@ -31,7 +33,7 @@ class SentenceTransformerEmbedder(EmbedderBase):
         default=None, description="Directory to cache or load the model."
     )
     client: SentenceTransformer = Field(
-        init=False, description="Loaded SentenceTransformer model."
+        default=client, init=False, description="Loaded SentenceTransformer model."
     )
 
     def model_post_init(self, __context: Any) -> None:
