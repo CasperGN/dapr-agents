@@ -28,9 +28,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
     encoding_name: Optional[str] = Field(
         default=None, description="Token encoding name (if provided)."
     )
-    encoder: Encoding = Field(
-        init=False, description="TikToken Encoder"
-    )
+    encoder: Encoding = Field(init=False, description="TikToken Encoder")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

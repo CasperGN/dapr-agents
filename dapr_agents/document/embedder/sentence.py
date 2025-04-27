@@ -108,8 +108,8 @@ class SentenceTransformerEmbedder(EmbedderBase):
                 logger.info("Stopping multi-process pool.")
                 self.client.stop_multi_process_pool(pool)
         else:
-            embeddings = self.client.encode( # type: ignore[assignment]
-                input_strings,               # this is a false positive as encode returns ndarray, mypy reads "Tensor"
+            embeddings = self.client.encode(  # type: ignore[assignment]
+                input_strings,  # this is a false positive as encode returns ndarray, mypy reads "Tensor"
                 convert_to_numpy=True,
                 normalize_embeddings=self.normalize_embeddings,
             )
