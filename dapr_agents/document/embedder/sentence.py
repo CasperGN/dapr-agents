@@ -116,7 +116,7 @@ class SentenceTransformerEmbedder(EmbedderBase):
 
         if single_input:
             return embeddings[0].tolist()
-        return embeddings.tolist()
+        return [float(emb) for emb in embeddings]
 
     def __call__(
         self, input: Union[str, List[str]]
