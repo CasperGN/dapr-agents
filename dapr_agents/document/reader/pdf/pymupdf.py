@@ -29,9 +29,9 @@ class PyMuPDFReader(ReaderBase):
         total_pages = len(doc)
         documents = []
 
-        for page_num, page in enumerate(doc.pages):
-            text = page.get_text()
-            metadata = {
+        for page_num, page in enumerate(doc.pages):  # type: ignore[arg-type,var-annotated]
+            text = page.get_text()  # enumerate expects Iterable[Never] but pages return an enumerator for _pages_ret
+            metadata = {  # type check complains of 'page' not being annotated. 'page' is of type pymudpdf.Page
                 "file_path": file_path,
                 "page_number": page_num + 1,
                 "total_pages": total_pages,
