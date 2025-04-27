@@ -92,7 +92,7 @@ class SplitterBase(BaseModel, ABC):
             return []
 
         chunks = []  # Store finalized chunks
-        current_chunk = []  # Collect splits for the current chunk
+        current_chunk: list[str] = []  # Collect splits for the current chunk
         current_size = 0  # Track the size of the current chunk
 
         for split in splits:
@@ -111,7 +111,7 @@ class SplitterBase(BaseModel, ABC):
                     )
 
                     # Create an overlap using sentences from the current chunk
-                    overlap = []
+                    overlap: list[str] = []
                     overlap_size = 0
                     for sentence in reversed(current_chunk):
                         sentence_size = self._get_chunk_size(sentence)
