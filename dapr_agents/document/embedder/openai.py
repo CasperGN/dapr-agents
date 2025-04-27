@@ -121,7 +121,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
 
         # Process the chunks in batches for efficiency
         batch_size = self.chunk_size
-        chunk_embeddings = []  # Holds embeddings for all chunks
+        chunk_embeddings: list[list[float]] = []  # Holds embeddings for all chunks
 
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]
@@ -129,7 +129,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
             chunk_embeddings.extend(r.embedding for r in response.data)
 
         # Group chunk embeddings by their original query indices
-        grouped_embeddings = [[] for _ in range(len(input_strings))]
+        grouped_embeddings: list[list[float]] = [[] for _ in range(len(input_strings))]
         for idx, embedding in zip(chunk_indices, chunk_embeddings):
             grouped_embeddings[idx].append(embedding)
 
