@@ -57,13 +57,7 @@ class ArxivFetcher(FetcherBase):
             >>> fetcher.search("artificial intelligence", download=True, dirpath=Path("./downloads"))
             # Searches for papers on "artificial intelligence" and downloads the PDFs to "./downloads".
         """
-        try:
-            import arxiv
-        except ImportError:
-            raise ImportError(
-                "The `arxiv` library is required to use the ArxivFetcher. "
-                "Install it with `pip install arxiv`."
-            )
+        import arxiv
 
         logger.info(f"Searching for query: {query}")
 

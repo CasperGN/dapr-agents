@@ -1,5 +1,6 @@
 from dapr_agents.document.embedder.base import EmbedderBase
 from typing import List, Any, Optional, Union, Literal
+from sentence_transformers import SentenceTransformer
 from pydantic import Field
 import logging
 import os
@@ -39,14 +40,6 @@ class SentenceTransformerEmbedder(EmbedderBase):
         Initialize the SentenceTransformer model after validation.
         """
         super().model_post_init(__context)
-
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError:
-            raise ImportError(
-                "The `sentence-transformers` library is required for this embedder. "
-                "Install it using `pip install sentence-transformers`."
-            )
 
         # Determine whether to load from cache or download
         model_path = (

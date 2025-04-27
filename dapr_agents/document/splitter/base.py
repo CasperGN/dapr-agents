@@ -4,9 +4,7 @@ from typing import List, Optional, Callable
 from dapr_agents.types.document import Document
 import re
 import logging
-
-try:
-    from nltk.tokenize import sent_tokenize
+from nltk.tokenize import sent_tokenize
 
     NLTK_AVAILABLE = True
 except ImportError:

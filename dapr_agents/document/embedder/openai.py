@@ -4,6 +4,8 @@ from typing import List, Any, Union, Optional
 from pydantic import Field, ConfigDict
 import numpy as np
 import logging
+import tiktoken
+from tiktoken.core import Encoding
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +40,6 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
         Automatically determines the appropriate encoding for the model.
         """
         super().model_post_init(__context)
-
-        try:
-            import tiktoken
-            from tiktoken.core import Encoding
-        except ImportError:
-            raise ImportError(
-                "The `tiktoken` library is required for tokenizing inputs. "
-                "Install it using `pip install tiktoken`."
-            )
 
         if self.encoding_name:
             # Use the explicitly provided encoding
