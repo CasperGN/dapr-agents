@@ -93,7 +93,7 @@ class NVIDIAEmbedder(NVIDIAEmbeddingClient, EmbedderBase):
         # Normalize embeddings if required
         if self.normalize:
             normalized_embeddings = [
-                (embedding / np.linalg.norm(embedding)).tolist()
+                (embedding / np.linalg.norm(embedding)).tolist()  # type: ignore[call-overload]
                 for embedding in chunk_embeddings
             ]
         else:
