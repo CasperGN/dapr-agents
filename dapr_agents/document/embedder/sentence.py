@@ -113,8 +113,6 @@ class SentenceTransformerEmbedder(EmbedderBase):
                 normalize_embeddings=self.normalize_embeddings,
             )
 
-        if single_input:
-            return [float(embeddings[0])]
         return [float(emb) for emb in embeddings]
 
     def __call__(
