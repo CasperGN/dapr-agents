@@ -23,12 +23,6 @@ class PyMuPDFReader(ReaderBase):
         Returns:
             List[Document]: A list of Document objects.
         """
-        try:
-            import pymupdf
-        except ImportError:
-            raise ImportError(
-                "PyMuPDF library is not installed. Install it using `pip install pymupdf`."
-            )
 
         file_path = Path(str(file_path))
         doc = pymupdf.open(file_path)
