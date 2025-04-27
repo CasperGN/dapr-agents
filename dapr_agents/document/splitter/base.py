@@ -209,7 +209,7 @@ class SplitterBase(BaseModel, ABC):
             List[str]: List of adaptively split text segments.
         """
         # Try primary separator first
-        chunks = self._split_by_separators(text, [self.separator])
+        chunks = self._split_by_separators(text, [str(self.separator)])
 
         # Use fallback separators if the primary separator fails
         if len(chunks) <= 1:
