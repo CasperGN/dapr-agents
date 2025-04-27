@@ -87,7 +87,7 @@ class NVIDIAEmbedder(NVIDIAEmbeddingClient, EmbedderBase):
         chunk_embeddings: list[list[float]] = []
         for i in range(0, len(input_list), self.chunk_size):
             batch = input_list[i : i + self.chunk_size]
-            response = self.create_embedding(input=batch, input_type=input_type)
+            response = self.create_embedding(input=batch, input_type=input_type)  # type: ignore[arg-type]
             chunk_embeddings.extend(r.embedding for r in response.data)
 
         # Normalize embeddings if required

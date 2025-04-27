@@ -124,8 +124,8 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
         chunk_embeddings: list[list[float]] = []  # Holds embeddings for all chunks
 
         for i in range(0, len(chunks), batch_size):
-            batch = chunks[i : i + batch_size]
-            response = self.create_embedding(input=batch)  # Batch API call
+            batch: list[str] = chunks[i : i + batch_size]
+            response = self.create_embedding(input=batch)  # type: ignore[arg-type]
             chunk_embeddings.extend(r.embedding for r in response.data)
 
         # Group chunk embeddings by their original query indices
