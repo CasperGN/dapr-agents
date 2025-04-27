@@ -75,7 +75,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
             return (weighted_avg / norm).tolist()
         return weighted_avg.tolist()
 
-    def embed(
+    def embed(  # type: ignore[override]
         self, input: Union[str, List[str]]
     ) -> Union[List[float], List[List[float]]]:
         """

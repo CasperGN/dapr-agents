@@ -25,7 +25,7 @@ class NVIDIAEmbedder(NVIDIAEmbeddingClient, EmbedderBase):
         default=True, description="Whether to normalize embeddings."
     )
 
-    def embed(
+    def embed(  # type: ignore[override]
         self, input: Union[str, List[str]]
     ) -> Union[List[float], List[List[float]]]:
         """

@@ -72,7 +72,7 @@ class SentenceTransformerEmbedder(EmbedderBase):
             logger.info(f"Saving the downloaded model to: {self.cache_dir}")
             self.client.save(self.cache_dir)
 
-    def embed(
+    def embed(  # type: ignore[override]
         self, input: Union[str, List[str]]
     ) -> Union[List[float], List[List[float]]]:
         """
