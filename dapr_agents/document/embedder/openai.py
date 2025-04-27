@@ -131,7 +131,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
         # Group chunk embeddings by their original query indices
         grouped_embeddings: list[list[float]] = [[] for _ in range(len(input_strings))]
         for idx, embedding in zip(chunk_indices, chunk_embeddings):
-            grouped_embeddings[idx].append(embedding)
+            grouped_embeddings[idx] = embedding
 
         # Combine chunk embeddings for each query
         results = []
@@ -144,7 +144,7 @@ class OpenAIEmbedder(OpenAIEmbeddingClient, EmbedderBase):
                 weights = [
                     len(chunk) for chunk in self._chunk_tokens(tokens, self.max_tokens)
                 ]
-                results.append(self._process_embeddings(embeddings, weights))
+                results += self._process_embeddings([embeddings], weights)
 
         return results
 
