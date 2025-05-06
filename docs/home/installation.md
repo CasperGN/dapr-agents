@@ -68,6 +68,16 @@ Redis Insight makes it easy to visualize and manage the data powering your agent
 
 ![](../img/home_installation_redis_dashboard.png)
 
+
+## Dapr Agents environment variables
+
+The following table explains the environment variables avalable to Dapr Agents and their use-case.
+
+| Name | Type | Function | Default |
+|--|--|-----|-|
+| DAPR_AGENTS_TRACE_SAMPLING | `Boolean` | Controls whether sampling of emitted OpenTelemetry Traces will happen | `False` |
+| DAPR_AGENTS_TRACE_SAMPLING_RATIO | `Integer` |  Controls the amount of traces to sample per 1000 | `1` |
+
 ## Using custom endpoints
 
 ### Azure hosted OpenAI endpoint
