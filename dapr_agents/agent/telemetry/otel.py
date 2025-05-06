@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import functools
 import logging
@@ -15,6 +15,7 @@ from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import set_tracer_provider
+from opentelemetry.context.context import Context
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -164,23 +165,7 @@ def async_span_decorator(name):
 
             # Extract OpenTelemetry context from kwargs if available
             otel_context = kwargs.pop("otel_context", None)
-
-            ctx = None
-            if otel_context:
-                try:
-                    # Convert Dapr-serialized context back to carrier format
-                    carrier = {
-                        "traceparent": otel_context.get("traceparent", ""),
-                        "tracestate": otel_context.get("tracestate", ""),
-                    }
-
-                    # Extract context from carrier
-                    ctx = _propagator.extract(carrier=carrier)
-                    logging.debug(
-                        f"Restored context for span '{name}': trace={carrier.get('traceparent', '')}"
-                    )
-                except Exception as e:
-                    logging.warning(f"Failed to extract context for span '{name}': {e}")
+            ctx = restore_otel_context(otel_context=otel_context)
 
             # Start span with context
             with tracer.start_as_current_span(name, context=ctx) as span:
@@ -204,23 +189,7 @@ def span_decorator(name):
 
             # Extract OpenTelemetry context from kwargs if available
             otel_context = kwargs.pop("otel_context", None)
-
-            ctx = None
-            if otel_context:
-                try:
-                    # Convert Dapr-serialized context back to carrier format
-                    carrier = {
-                        "traceparent": otel_context.get("traceparent", ""),
-                        "tracestate": otel_context.get("tracestate", ""),
-                    }
-
-                    # Extract context from carrier
-                    ctx = _propagator.extract(carrier=carrier)
-                    logging.debug(
-                        f"Restored context for span '{name}': trace={carrier.get('traceparent', '')}"
-                    )
-                except Exception as e:
-                    logging.warning(f"Failed to extract context for span '{name}': {e}")
+            ctx: Optional[Context] = restore_otel_context(otel_context=otel_context)
 
             # Start span with context
             with tracer.start_as_current_span(name, context=ctx) as span:
@@ -230,6 +199,45 @@ def span_decorator(name):
         return wrapper
 
     return decorator
+
+
+def restore_otel_context(otel_context: dict[str, Any]) -> Optional[Context]:
+    """
+    Restore OpenTelemetry context from a previously extracted context dictionary.
+
+    Args:
+        otel_context: Dictionary containing context information
+
+    Returns:
+        Context object that can be used with tracer.start_as_current_span()
+    """
+    if not otel_context:
+        return None
+
+    try:
+        # First try using standard W3C headers
+        carrier = {
+            "traceparent": otel_context.get("traceparent", ""),
+            "tracestate": otel_context.get("tracestate", ""),
+        }
+
+        # If traceparent is missing but we have the raw components, reconstruct it
+        if not carrier["traceparent"] and all(
+            k in otel_context for k in ["trace_id", "span_id", "trace_flags"]
+        ):
+            trace_id = otel_context["trace_id"]
+            span_id = otel_context["span_id"]
+            flags = otel_context["trace_flags"]
+            carrier["traceparent"] = f"00-{trace_id}-{span_id}-{flags}"
+            logging.debug("Reconstructed traceparent from components")
+
+        # Extract context from carrier
+        ctx = _propagator.extract(carrier=carrier)
+        logging.debug(f"Restored context: trace={carrier.get('traceparent', '')}")
+        return ctx
+    except Exception as e:
+        logging.warning(f"Failed to restore context: {e}")
+        return None
 
 
 def extract_otel_context() -> dict[str, Any]:
