@@ -1,5 +1,7 @@
 from logging import Logger
+import os
 from typing import Any, Optional, Union
+from distutils.util import strtobool
 
 import functools
 import logging
@@ -13,6 +15,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import set_tracer_provider
 from opentelemetry.context.context import Context
@@ -87,10 +90,19 @@ class DaprAgentsOTel:
             endpoint=self.otlp_endpoint if otlp_endpoint == "" else otlp_endpoint,
             telemetry_type="traces",
         )
+        try:
+            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "0.0"))
+        except ValueError:
+            # There's no need to actually raise an error here, just set to 1.0
+            logging.warning(
+                "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 0.0."
+            )
+            sampling_ratio = 0.0
 
+        sampler = TraceIdRatioBased(sampling_ratio)
         trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
         tracer_processor = BatchSpanProcessor(trace_exporter)
-        tracer_provider = TracerProvider(resource=self._resource)
+        tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
         set_tracer_provider(tracer_provider)
         return tracer_provider
