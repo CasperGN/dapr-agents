@@ -218,7 +218,7 @@ class AssistantAgent(AgentWorkflowBase):
                     "parallel_tool_execution"
                 ) as parallel_span:
                     parallel_span.set_attribute("tool_calls.count", len(tool_calls))
-                    yield self.when_all(parallel_tasks)
+                    yield self.when_all(parallel_tasks, current_context)
             else:
                 # Fall back if no tracer is available
                 span.add_event(
@@ -336,7 +336,6 @@ class AssistantAgent(AgentWorkflowBase):
 
         # Process conversation iterations
         messages += self.tool_history
-        logger.info(f"### Messages: {messages}")
 
         # Generate Tool Calls
         response: ChatCompletion = self.llm.generate(
@@ -345,6 +344,7 @@ class AssistantAgent(AgentWorkflowBase):
             tool_choice=self.tool_choice,
             otel_context=otel_context,
         )
+        logger.info(f"### LLM Response={response.model_dump()}")
 
         # Return chat completion as a dictionary
         return response.model_dump()
