@@ -512,7 +512,9 @@ class AssistantAgent(AgentWorkflowBase):
 
     @task
     @async_span_decorator("broadcast_msg_to_agents")
-    async def broadcast_message_to_agents(self, message: Dict[str, Any]):
+    async def broadcast_message_to_agents(
+        self, message: Dict[str, Any], otel_context: Dict[str, Any] = None
+    ):
         """
         Broadcasts it to all registered agents.
 
@@ -530,7 +532,11 @@ class AssistantAgent(AgentWorkflowBase):
     @task
     @async_span_decorator("respond_to_agent")
     async def send_response_back(
-        self, response: Dict[str, Any], target_agent: str, target_instance_id: str
+        self,
+        response: Dict[str, Any],
+        target_agent: str,
+        target_instance_id: str,
+        otel_context: Dict[str, Any] = None,
     ):
         """
         Sends a task response back to a target agent within a workflow.
@@ -554,7 +560,12 @@ class AssistantAgent(AgentWorkflowBase):
 
     @task
     @async_span_decorator("finish_workflow")
-    async def finish_workflow(self, instance_id: str, message: Dict[str, Any]):
+    async def finish_workflow(
+        self,
+        instance_id: str,
+        message: Dict[str, Any],
+        otel_context: Dict[str, Any] = None,
+    ):
         """
         Finalizes the workflow by storing the provided message as the final output.
 
@@ -647,7 +658,9 @@ class AssistantAgent(AgentWorkflowBase):
 
     @message_router(broadcast=True)
     @async_span_decorator("process_broadcast_msg")
-    async def process_broadcast_message(self, message: BroadcastMessage):
+    async def process_broadcast_message(
+        self, message: BroadcastMessage, otel_context: Dict[str, Any] = None
+    ):
         """
         Processes a broadcast message, filtering out messages sent by the same agent
         and updating local memory with valid messages.
