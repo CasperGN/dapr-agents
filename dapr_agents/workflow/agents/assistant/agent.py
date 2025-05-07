@@ -398,7 +398,7 @@ class AssistantAgent(AgentWorkflowBase):
     @task
     @span_decorator("get_tool_calls")
     def get_tool_calls(
-        self, response: Dict[str, Any]
+        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Extracts tool calls from the first choice in the LLM response, if available.
