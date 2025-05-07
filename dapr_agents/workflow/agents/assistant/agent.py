@@ -38,6 +38,7 @@ from dapr_agents.agent.telemetry import (
 )
 
 from opentelemetry import trace
+from opentelemetry.context import get_current
 from opentelemetry.trace import Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
@@ -214,7 +215,7 @@ class AssistantAgent(AgentWorkflowBase):
             ]
             if self._tracer:
                 with self._tracer.start_as_current_span(
-                    "parallel_tool_execution"
+                    "parallel_tool_execution", context=get_current()
                 ) as parallel_span:
                     parallel_span.set_attribute("tool_calls.count", len(tool_calls))
                     yield self.when_all(parallel_tasks)
