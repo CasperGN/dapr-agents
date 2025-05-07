@@ -322,7 +322,7 @@ class AssistantAgent(AgentWorkflowBase):
         # TODO: Finish me!!
         span = trace.get_current_span()
 
-        # Contruct prompt messages
+        # Construct prompt messages
         messages = self.construct_messages(task or {})
         span.set_attribute("workflow.messages_size", len(messages))
         span.set_attribute("workflow.id", instance_id)
