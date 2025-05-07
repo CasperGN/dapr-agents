@@ -183,7 +183,6 @@ class AssistantAgent(AgentWorkflowBase):
 
         # Step 5: Choose execution path based on LLM response
         if finish_reason == "tool_calls":
-            span.add_event("tool_calls_detected", {"count": len(tool_calls) if tool_calls else 0})
             if not ctx.is_replaying:
                 logger.info(
                     "Tool calls detected in LLM response, extracting and preparing for execution.."
@@ -193,6 +192,9 @@ class AssistantAgent(AgentWorkflowBase):
             tool_calls = yield ctx.call_activity(
                 self.get_tool_calls,
                 input={"response": response, "otel_context": current_context},
+            )
+            span.add_event(
+                "tool_calls_detected", {"count": len(tool_calls) if tool_calls else 0}
             )
 
             # Execute tool calls in parallel
@@ -246,7 +248,8 @@ class AssistantAgent(AgentWorkflowBase):
 
             # Step 8: Broadcasting Response to all agents if available
             yield ctx.call_activity(
-                self.broadcast_message_to_agents, input={"message": response_message, "otel_context": current_context}
+                self.broadcast_message_to_agents,
+                input={"message": response_message, "otel_context": current_context},
             )
 
             # Step 9: Respond to source agent if available
@@ -263,7 +266,11 @@ class AssistantAgent(AgentWorkflowBase):
             # Step 10: Share Final Message
             yield ctx.call_activity(
                 self.finish_workflow,
-                input={"instance_id": instance_id, "message": response_message, "otel_context": current_context},
+                input={
+                    "instance_id": instance_id,
+                    "message": response_message,
+                    "otel_context": current_context,
+                },
             )
 
             if not ctx.is_replaying:
@@ -274,7 +281,9 @@ class AssistantAgent(AgentWorkflowBase):
             return response_message
 
         else:
-            span.add_event("continuing_workflow", {"next_iteration": next_iteration_count})
+            span.add_event(
+                "continuing_workflow", {"next_iteration": next_iteration_count}
+            )
 
         # Step 7: Continue Workflow Execution
         message.update({"task": None, "iteration": next_iteration_count})
@@ -346,7 +355,9 @@ class AssistantAgent(AgentWorkflowBase):
 
     @task
     @span_decorator("get_finish_reason")
-    def get_finish_reason(self, response: Dict[str, Any], otel_context: Dict[str, Any] = None) -> str:
+    def get_finish_reason(
+        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
+    ) -> str:
         """
         Extracts the finish reason from the LLM response, indicating why generation stopped.
 
@@ -572,11 +583,16 @@ class AssistantAgent(AgentWorkflowBase):
         """
         span = trace.get_current_span()
         span.set_attribute("workflow.id", instance_id)
-        span.set_attribute("update.type", 
-                        "message" if message else 
-                        "tool_message" if tool_message else
-                        "final_output" if final_output else
-                        "unknown")
+        span.set_attribute(
+            "update.type",
+            "message"
+            if message
+            else "tool_message"
+            if tool_message
+            else "final_output"
+            if final_output
+            else "unknown",
+        )
         workflow_entry: AssistantWorkflowEntry = self.state["instances"].get(
             instance_id
         )
