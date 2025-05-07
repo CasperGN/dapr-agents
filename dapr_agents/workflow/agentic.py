@@ -35,9 +35,9 @@ from dapr_agents.storage.daprstores.statestore import DaprStateStore
 from dapr_agents.workflow import WorkflowApp
 from opentelemetry.sdk.trace import Tracer
 from dapr_agents.agent.telemetry import (
-    DaprAgentsOTel,
     async_span_decorator,
     span_decorator,
+    extract_otel_context,
 )
 from opentelemetry import trace
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
@@ -677,17 +677,24 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             )
 
             # Add attributes to current span if tracer exists
-            if self._tracer and trace.get_current_span():
+            otel_context = {}
+            if self._tracer:
+                # Extract the current context for propagation across service boundaries
+                otel_context = extract_otel_context()
+
+                # Add attributes to current span if tracer exists
                 span = trace.get_current_span()
-                span.set_attribute("message.destination", self.broadcast_topic_name)
-                span.set_attribute("message.recipients_count", len(agents_metadata))
-                span.set_attribute("message.type", type(message).__name__)
+                if span and span.is_recording():
+                    span.set_attribute("message.destination", self.broadcast_topic_name)
+                    span.set_attribute("message.recipients_count", len(agents_metadata))
+                    span.set_attribute("message.type", type(message).__name__)
 
             await self.publish_event_message(
                 topic_name=self.broadcast_topic_name,
                 pubsub_name=self.message_bus_name,
                 source=self.name,
                 message=message,
+                otel_context=otel_context,
                 **kwargs,
             )
 
@@ -719,16 +726,23 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             agent_metadata = agents_metadata[name]
             logger.info(f"{self.name} sending message to agent '{name}'.")
 
-            span = trace.get_current_span()
-            span.set_attribute("message.receiver", agent_metadata["topic_name"])
-            span.set_attribute("message.sender", self.name)
-            span.set_attribute("message.message", str(message))
+            otel_context = {}
+            if self._tracer:
+                otel_context = extract_otel_context()
+
+                # Add attributes to current span
+                span = trace.get_current_span()
+                if span and span.is_recording():
+                    span.set_attribute("message.receiver", agent_metadata["topic_name"])
+                    span.set_attribute("message.sender", self.name)
+                    span.set_attribute("message.content", str(message))
 
             await self.publish_event_message(
                 topic_name=agent_metadata["topic_name"],
                 pubsub_name=agent_metadata["pubsub_name"],
                 source=self.name,
                 message=message,
+                otel_context=otel_context,
                 **kwargs,
             )
 
@@ -792,17 +806,27 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             JSONResponse: A 202 Accepted response with the workflow instance ID if successful,
                         or a 400/500 error response if the request fails validation or execution.
         """
+        span = trace.get_current_span()
+
         try:
             # Extract workflow name from query parameters or use default
             workflow_name = request.query_params.get("name") or self._workflow_name
             if not workflow_name:
+                if span.is_recording():
+                    span.set_attribute("error", "No workflow name specified")
+
                 return JSONResponse(
                     content={"error": "No workflow name specified."},
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
+            if span.is_recording():
+                span.set_attribute("workflow.name", workflow_name)
 
             # Validate workflow name against registered workflows
             if workflow_name not in self.workflows:
+                if span.is_recording():
+                    span.set_attribute("error", f"Unknown workflow '{workflow_name}'")
+
                 return JSONResponse(
                     content={
                         "error": f"Unknown workflow '{workflow_name}'. Available: {list(self.workflows.keys())}"
@@ -819,8 +843,14 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             except Exception:
                 input_data = await request.json()
 
+            if span.is_recording():
+                span.set_attribute("workflow.input", str(input_data))
+
             logger.info(f"Starting workflow '{workflow_name}' with input: {input_data}")
             instance_id = self.run_workflow(workflow=workflow_name, input=input_data)
+
+            if span.is_recording():
+                span.set_attribute("workflow.instance_id", instance_id)
 
             asyncio.create_task(self.monitor_workflow_completion(instance_id))
 
@@ -834,6 +864,11 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
 
         except Exception as e:
             logger.error(f"Error starting workflow: {str(e)}", exc_info=True)
+
+            if span.is_recording():
+                span.set_attribute("error", str(e))
+                span.record_exception(e)
+
             return JSONResponse(
                 content={"error": "Failed to start workflow", "details": str(e)},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

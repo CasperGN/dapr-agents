@@ -89,6 +89,7 @@ class DaprPubSub(BaseModel):
         source: str,
         message: Union[BaseModel, dict, Any],
         message_type: Optional[str] = None,
+        otel_context: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         """
@@ -122,6 +123,13 @@ class DaprPubSub(BaseModel):
                 "Message must be a Pydantic BaseModel, a dictionary, or a dataclass instance."
             )
 
+        # Add OpenTelemetry context to the message payload for cross-service propagation
+        if otel_context:
+            # Create a wrapper that contains both the original message and the tracing context
+            payload = {"message_content": message_dict, "otel_context": otel_context}
+        else:
+            payload = message_dict
+
         metadata = {
             "cloudevent.type": message_type,
             "cloudevent.source": source,
@@ -131,12 +139,12 @@ class DaprPubSub(BaseModel):
         logger.debug(
             f"{source} preparing to publish '{message_type}' to topic '{topic_name}'."
         )
-        logger.debug(f"Message: {message_dict}, Metadata: {metadata}")
+        logger.debug(f"Message: {payload}, Metadata: {metadata}")
 
         await self.publish_message(
             topic_name=topic_name,
             pubsub_name=pubsub_name or self.message_bus_name,
-            message=message_dict,
+            message=payload,
             metadata=metadata,
         )
 
