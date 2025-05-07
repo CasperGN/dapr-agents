@@ -111,6 +111,14 @@ class AssistantAgent(AgentWorkflowBase):
         iteration = message.get("iteration", 0)
         instance_id = ctx.instance_id
 
+        if isinstance(task, str):
+            # Only set content attribute if it's reasonable in size
+            if len(task) < 1000:
+                span.set_attribute("workflow.task", task)
+            span.set_attribute("workflow.task_size", len(task))
+        else:
+            span.set_attribute("workflow.task_type", str(type(task)))
+
         span.set_attribute("workflow.id", instance_id)
         span.set_attribute("workflow.iteration", iteration)
         span.set_attribute("workflow.task", task)
@@ -175,6 +183,7 @@ class AssistantAgent(AgentWorkflowBase):
 
         # Step 5: Choose execution path based on LLM response
         if finish_reason == "tool_calls":
+            span.add_event("tool_calls_detected", {"count": len(tool_calls) if tool_calls else 0})
             if not ctx.is_replaying:
                 logger.info(
                     "Tool calls detected in LLM response, extracting and preparing for execution.."
@@ -201,8 +210,11 @@ class AssistantAgent(AgentWorkflowBase):
                 )
                 for tool_call in tool_calls
             ]
-            yield self.when_all(parallel_tasks)
+            with span.start_span("parallel_tool_execution") as parallel_span:
+                parallel_span.set_attribute("tool_calls.count", len(tool_calls))
+                yield self.when_all(parallel_tasks)
         else:
+            span.add_event("no_tool_calls_detected")
             if not ctx.is_replaying:
                 logger.info("Agent generating response without tool execution..")
 
@@ -216,6 +228,7 @@ class AssistantAgent(AgentWorkflowBase):
         if finish_reason == "stop" or max_iterations_reached:
             # Determine the reason for stopping
             if max_iterations_reached:
+                span.add_event("max_iterations_reached", {"limit": self.max_iterations})
                 verdict = "max_iterations_reached"
                 if not ctx.is_replaying:
                     logger.warning(
@@ -228,11 +241,12 @@ class AssistantAgent(AgentWorkflowBase):
                 ] += "\n\nThe workflow was terminated because it reached the maximum iteration limit. The task may not be fully complete."
 
             else:
+                span.add_event("natural_stop")
                 verdict = "model hit a natural stop point."
 
             # Step 8: Broadcasting Response to all agents if available
             yield ctx.call_activity(
-                self.broadcast_message_to_agents, input={"message": response_message}
+                self.broadcast_message_to_agents, input={"message": response_message, "otel_context": current_context}
             )
 
             # Step 9: Respond to source agent if available
@@ -242,13 +256,14 @@ class AssistantAgent(AgentWorkflowBase):
                     "response": response_message,
                     "target_agent": source,
                     "target_instance_id": source_workflow_instance_id,
+                    "otel_context": current_context,
                 },
             )
 
             # Step 10: Share Final Message
             yield ctx.call_activity(
                 self.finish_workflow,
-                input={"instance_id": instance_id, "message": response_message},
+                input={"instance_id": instance_id, "message": response_message, "otel_context": current_context},
             )
 
             if not ctx.is_replaying:
@@ -257,6 +272,9 @@ class AssistantAgent(AgentWorkflowBase):
                 )
 
             return response_message
+
+        else:
+            span.add_event("continuing_workflow", {"next_iteration": next_iteration_count})
 
         # Step 7: Continue Workflow Execution
         message.update({"task": None, "iteration": next_iteration_count})
@@ -292,7 +310,7 @@ class AssistantAgent(AgentWorkflowBase):
         if task:
             task_message = {"role": "user", "content": task}
             await self.update_workflow_state(
-                instance_id=instance_id, message=task_message
+                instance_id=instance_id, message=task_message, otel_context=otel_context
             )
 
         # Process conversation iterations
@@ -328,7 +346,7 @@ class AssistantAgent(AgentWorkflowBase):
 
     @task
     @span_decorator("get_finish_reason")
-    def get_finish_reason(self, response: Dict[str, Any]) -> str:
+    def get_finish_reason(self, response: Dict[str, Any], otel_context: Dict[str, Any] = None) -> str:
         """
         Extracts the finish reason from the LLM response, indicating why generation stopped.
 
@@ -538,6 +556,7 @@ class AssistantAgent(AgentWorkflowBase):
         message: Optional[Dict[str, Any]] = None,
         tool_message: Optional[Dict[str, Any]] = None,
         final_output: Optional[str] = None,
+        otel_context: Dict[str, Any] = None,
     ):
         """
         Updates the workflow state by appending a new message or setting the final output.
@@ -551,6 +570,13 @@ class AssistantAgent(AgentWorkflowBase):
         Raises:
             ValueError: If no workflow entry is found for the given instance_id.
         """
+        span = trace.get_current_span()
+        span.set_attribute("workflow.id", instance_id)
+        span.set_attribute("update.type", 
+                        "message" if message else 
+                        "tool_message" if tool_message else
+                        "final_output" if final_output else
+                        "unknown")
         workflow_entry: AssistantWorkflowEntry = self.state["instances"].get(
             instance_id
         )
