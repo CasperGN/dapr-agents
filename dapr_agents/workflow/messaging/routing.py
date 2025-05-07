@@ -13,8 +13,10 @@ from dapr_agents.workflow.messaging.parser import (
     extract_cloudevent_data,
     validate_message_model,
 )
+from dapr_agents.agent.telemetry import restore_otel_context
 from dapr_agents.workflow.messaging.utils import is_valid_routable_model
 from dapr_agents.workflow.utils import get_decorated_methods
+from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
 
@@ -195,35 +197,98 @@ class MessageRoutingMixin:
             event_data, metadata = extract_cloudevent_data(message)
             event_type = metadata.get("type")
 
-            route_entry = handler_map.get(event_type)
-            if not route_entry:
-                logger.warning(
-                    f"No handler matched CloudEvent type '{event_type}' on topic '{topic_name}'"
-                )
-                return TopicEventResponse("drop")
+            # Handle OpenTelemetry context propagation
+            otel_context = None
+            actual_message_content = event_data
 
-            schema = route_entry["schema"]
-            handler = route_entry["handler"]
+            # Check if the message contains a wrapped structure with OpenTelemetry context
+            if (
+                isinstance(event_data, dict)
+                and "message_content" in event_data
+                and "otel_context" in event_data
+            ):
+                # Extract the OpenTelemetry context and the original message content
+                otel_context = event_data.get("otel_context")
+                actual_message_content = event_data.get("message_content")
 
-            try:
-                parsed_message = validate_message_model(schema, event_data)
-                parsed_message["_message_metadata"] = metadata
+                # Set up propagated context for the message processing
+                if (
+                    hasattr(self, "_tracer")
+                    and self._tracer is not None
+                    and otel_context
+                ):
+                    try:
+                        # Restore the trace context from the sender
+                        ctx = restore_otel_context(otel_context)
 
-                logger.info(
-                    f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
-                )
-                result = await handler(parsed_message)
-                if result is not None:
-                    return TopicEventResponse("success"), result
+                        # Create a span within the restored context
+                        with self._tracer.start_as_current_span(
+                            f"process_{event_type}",
+                            context=ctx,
+                            kind=trace.SpanKind.CONSUMER,
+                        ) as span:
+                            span.set_attribute("messaging.system", "dapr_pubsub")
+                            span.set_attribute("messaging.destination", topic_name)
+                            span.set_attribute("messaging.event_type", event_type)
 
-                return TopicEventResponse("success")
+                            # Process the message within the trace context
+                            return await self._process_message_with_context(
+                                handler_map,
+                                event_type,
+                                actual_message_content,
+                                metadata,
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to restore OpenTelemetry context: {e}")
+                        # Continue processing without the context
 
-            except Exception as e:
-                logger.warning(
-                    f"Failed to validate message against schema '{schema.__name__}': {e}"
-                )
-                return TopicEventResponse("retry")
+            # Process message normally if no context or if context restoration failed
+            return await self._process_message_with_context(
+                handler_map, event_type, actual_message_content, metadata
+            )
 
         except Exception as e:
             logger.error(f"Unexpected error during message routing: {e}", exc_info=True)
+            return TopicEventResponse("retry")
+
+    async def _process_message_with_context(
+        self, handler_map: dict, event_type: str, message_data: dict, metadata: dict
+    ) -> TopicEventResponse:
+        """
+        Process the message content with the appropriate handler.
+
+        Args:
+            handler_map: Map of handlers for the current topic
+            event_type: Type of the CloudEvent
+            message_data: The actual message content
+            metadata: Message metadata from CloudEvent
+
+        Returns:
+            TopicEventResponse: The response status for the message
+        """
+        route_entry = handler_map.get(event_type)
+        if not route_entry:
+            logger.warning(f"No handler matched CloudEvent type '{event_type}'")
+            return TopicEventResponse("drop")
+
+        schema = route_entry["schema"]
+        handler = route_entry["handler"]
+
+        try:
+            parsed_message = validate_message_model(schema, message_data)
+            parsed_message["_message_metadata"] = metadata
+
+            logger.info(
+                f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
+            )
+            result = await handler(parsed_message)
+            if result is not None:
+                return TopicEventResponse("success"), result
+
+            return TopicEventResponse("success")
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to validate message against schema '{schema.__name__}': {e}"
+            )
             return TopicEventResponse("retry")
