@@ -179,12 +179,15 @@ def llm_span_decorator(name="llm.generate"):
         def wrapper(self, *args, **kwargs):
             # Extract OpenTelemetry context if provided
             otel_context = kwargs.get("otel_context")
+            logging.info(f"Received otel_context={otel_context}")
 
             # Get the tracer if available
             tracer = getattr(self, "_tracer", None)
             if not tracer:
                 # Just execute the function without tracing if no tracer
                 return func(self, *args, **kwargs)
+
+            logging.info(f"Creating span {name} for {func.__name__}")
 
             # Get info about the request
             # model = kwargs.get("model") or getattr(self, "model", "unknown")
@@ -219,6 +222,8 @@ def llm_span_decorator(name="llm.generate"):
                 span.set_attribute("llm.request.message_count", message_count)
                 span.set_attribute("llm.request.estimated_tokens", token_estimate)
                 span.set_attribute("llm.tool_count", len(tools) if tools else 0)
+
+                logging.info(f"LLM span created successfully: {span}")
 
                 # Record start time
                 start_time = time.time()
@@ -257,6 +262,7 @@ def llm_span_decorator(name="llm.generate"):
                                     "llm.response.tool_calls_count", len(tool_calls)
                                 )
 
+                    logging.info(f"LLM function executed: {response}")
                     return response
 
                 except Exception as e:
