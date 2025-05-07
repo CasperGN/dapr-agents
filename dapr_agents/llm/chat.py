@@ -1,6 +1,10 @@
 from typing import Union, Dict, Any, Optional, Iterable, List, Iterator, Type
 from dapr_agents.prompt.base import PromptTemplateBase
 from dapr_agents.prompt.prompty import Prompty
+from dapr_agents.agent.telemetry import (
+    llm_span_decorator,
+)
+
 from pydantic import BaseModel, Field
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -39,6 +43,7 @@ class ChatClientBase(BaseModel, ABC):
         pass
 
     @abstractmethod
+    @llm_span_decorator("generate_chat")
     def generate(
         self,
         messages: Union[
@@ -49,6 +54,7 @@ class ChatClientBase(BaseModel, ABC):
         tools: Optional[List[Union[Dict[str, Any]]]] = None,
         response_format: Optional[Type[BaseModel]] = None,
         structured_mode: Optional[str] = None,
+        otel_context: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Union[Iterator[Dict[str, Any]], Dict[str, Any]]:
         """
