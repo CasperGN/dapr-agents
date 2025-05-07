@@ -212,8 +212,17 @@ class AssistantAgent(AgentWorkflowBase):
                 )
                 for tool_call in tool_calls
             ]
-            with span.start_span("parallel_tool_execution") as parallel_span:
-                parallel_span.set_attribute("tool_calls.count", len(tool_calls))
+            if self._tracer:
+                with self._tracer.start_as_current_span(
+                    "parallel_tool_execution"
+                ) as parallel_span:
+                    parallel_span.set_attribute("tool_calls.count", len(tool_calls))
+                    yield self.when_all(parallel_tasks)
+            else:
+                # Fall back if no tracer is available
+                span.add_event(
+                    "parallel_tool_execution", {"tool_calls.count": len(tool_calls)}
+                )
                 yield self.when_all(parallel_tasks)
         else:
             span.add_event("no_tool_calls_detected")
