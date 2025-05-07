@@ -1,5 +1,6 @@
 from logging import Logger
 import os
+import time
 from typing import Any, Optional, Union
 from distutils.util import strtobool
 
@@ -163,6 +164,123 @@ class DaprAgentsOTel:
 
 
 _propagator = TraceContextTextMapPropagator()
+
+
+def llm_span_decorator(name="llm.generate"):
+    """
+    Decorator for tracing LLM API calls with detailed metrics.
+
+    Args:
+        name (str): Name for the span. Defaults to "llm.generate".
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Extract OpenTelemetry context if provided
+            otel_context = kwargs.get("otel_context")
+
+            # Get the tracer if available
+            tracer = getattr(self, "_tracer", None)
+            if not tracer:
+                # Just execute the function without tracing if no tracer
+                return func(self, *args, **kwargs)
+
+            # Get info about the request
+            # model = kwargs.get("model") or getattr(self, "model", "unknown")
+            messages = kwargs.get("messages") or args[0] if args else None
+            tools = kwargs.get("tools", None)
+
+            # Calculate message token count estimate
+            message_count = 0
+            token_estimate = 0
+            if messages:
+                if isinstance(messages, list):
+                    message_count = len(messages)
+                    token_estimate = sum(
+                        _estimate_tokens_from_message(msg) for msg in messages
+                    )
+                else:
+                    message_count = 1
+                    token_estimate = _estimate_tokens_from_message(messages)
+
+            # Try to restore context if provided
+            current_context = None
+            if otel_context:
+                try:
+                    current_context = restore_otel_context(otel_context)
+                except Exception as e:
+                    logging.warning(f"Failed to restore OpenTelemetry context: {e}")
+
+            # Start the span with the restored context
+            with tracer.start_as_current_span(name, context=current_context) as span:
+                # span.set_attribute("llm.provider", getattr(self, "provider", "openai"))
+                # span.set_attribute("llm.model", model)
+                span.set_attribute("llm.request.message_count", message_count)
+                span.set_attribute("llm.request.estimated_tokens", token_estimate)
+                span.set_attribute("llm.tool_count", len(tools) if tools else 0)
+
+                # Record start time
+                start_time = time.time()
+
+                try:
+                    # Make the actual LLM API call
+                    response = func(self, *args, **kwargs)
+
+                    # Calculate duration
+                    duration_ms = (time.time() - start_time) * 1000
+                    span.set_attribute("llm.latency_ms", duration_ms)
+
+                    # Extract usage information if available
+                    if hasattr(response, "usage") and response.usage:
+                        usage = response.usage
+                        span.set_attribute(
+                            "llm.tokens.prompt", getattr(usage, "prompt_tokens", 0)
+                        )
+                        span.set_attribute(
+                            "llm.tokens.completion",
+                            getattr(usage, "completion_tokens", 0),
+                        )
+                        span.set_attribute(
+                            "llm.tokens.total", getattr(usage, "total_tokens", 0)
+                        )
+
+                    # Check for tool calls
+                    if hasattr(response, "choices") and response.choices:
+                        choice = response.choices[0]
+                        if hasattr(choice, "message") and hasattr(
+                            choice.message, "tool_calls"
+                        ):
+                            tool_calls = choice.message.tool_calls
+                            if tool_calls:
+                                span.set_attribute(
+                                    "llm.response.tool_calls_count", len(tool_calls)
+                                )
+
+                    return response
+
+                except Exception as e:
+                    span.set_status(trace.Status(trace.StatusCode.ERROR))
+                    span.record_exception(e)
+                    span.set_attribute("error.message", str(e))
+                    raise
+
+        return wrapper
+
+    return decorator
+
+
+def _estimate_tokens_from_message(message):
+    """Simple token estimation function"""
+    if isinstance(message, str):
+        return len(message.split()) // 3 * 4  # Rough approximation
+
+    if isinstance(message, dict):
+        content = message.get("content", "")
+        if isinstance(content, str):
+            return len(content.split()) // 3 * 4  # Rough approximation
+
+    return 0  # Can't estimate
 
 
 def async_span_decorator(name):
