@@ -320,10 +320,12 @@ class AssistantAgent(AgentWorkflowBase):
         """
 
         # TODO: Finish me!!
-        # span = trace.get_current_span()
+        span = trace.get_current_span()
 
         # Contruct prompt messages
         messages = self.construct_messages(task or {})
+        span.set_attribute("workflow.messages_size", len(messages))
+        span.set_attribute("workflow.id", instance_id)
 
         # Store message in workflow state and local memory
         if task:
@@ -334,10 +336,14 @@ class AssistantAgent(AgentWorkflowBase):
 
         # Process conversation iterations
         messages += self.tool_history
+        logger.info(f"### Messages: {messages}")
 
         # Generate Tool Calls
-        response: ChatCompletion = self.llm.generate(  # TODO: Here!
-            messages=messages, tools=self.tools, tool_choice=self.tool_choice
+        response: ChatCompletion = self.llm.generate(
+            messages=messages,
+            tools=self.tools,
+            tool_choice=self.tool_choice,
+            otel_context=otel_context,
         )
 
         # Return chat completion as a dictionary
