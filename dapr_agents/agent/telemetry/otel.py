@@ -2,10 +2,10 @@ from logging import Logger
 import os
 import time
 from typing import Any, Optional, Union
-from distutils.util import strtobool
 
 import functools
 import logging
+import uuid
 
 from opentelemetry import trace
 from opentelemetry._logs import set_logger_provider
@@ -46,6 +46,7 @@ class DaprAgentsOTel:
         self._resource = Resource.create(
             attributes={
                 SERVICE_NAME: str(self.service_name),
+                "service.instance.id": str(uuid.uuid4()),
             }
         )
 
