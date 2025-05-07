@@ -25,7 +25,7 @@ import logging
 
 from pydantic import PrivateAttr
 from dapr_agents.agent.telemetry import (
-    span_decorator,
+    llm_span_decorator,
 )
 
 from opentelemetry import trace
@@ -137,7 +137,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
                 f"Unsupported model configuration type: {type(model_config.configuration)}"
             )
 
-    @span_decorator("generate_chat")
+    @llm_span_decorator("generate_chat")
     def generate(
         self,
         messages: Union[
@@ -151,6 +151,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         tools: Optional[List[Union[AgentTool, Dict[str, Any]]]] = None,
         response_format: Optional[Type[BaseModel]] = None,
         structured_mode: Literal["json", "function_call"] = "json",
+        otel_context: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Union[Iterator[Dict[str, Any]], Dict[str, Any]]:
         """
