@@ -215,7 +215,7 @@ class AssistantAgent(AgentWorkflowBase):
             ]
             if self._tracer:
                 with self._tracer.start_as_current_span(
-                    "parallel_tool_execution", context=get_current()
+                    "parallel_tool_execution"
                 ) as parallel_span:
                     parallel_span.set_attribute("tool_calls.count", len(tool_calls))
                     yield self.when_all(parallel_tasks)

@@ -171,18 +171,37 @@ def async_span_decorator(name):
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            tracer = getattr(self, "_tracer", None)
-            if not tracer:
-                return await func(self, *args, **kwargs)
+            otel_context = kwargs.get("otel_context")
+            current_context = None
 
-            # Extract OpenTelemetry context from kwargs if available
-            otel_context = kwargs.pop("otel_context", None)
-            ctx = restore_otel_context(otel_context=otel_context)
+            try:
+                # Get the tracer if available
+                tracer = getattr(self, "_tracer", None)
+                if not tracer:
+                    # Just execute the function without tracing if no tracer
+                    return await func(self, *args, **kwargs)
 
-            # Start span with context
-            with tracer.start_as_current_span(name, context=ctx) as span:
-                span.set_attribute("function.name", func.__name__)
-                return await func(self, *args, **kwargs)
+                # Try to restore context if provided, otherwise use current context
+                if otel_context:
+                    try:
+                        current_context = restore_otel_context(otel_context)
+                    except Exception as e:
+                        logging.warning(f"Failed to restore OpenTelemetry context: {e}")
+
+                # Start a new span with appropriate context
+                with tracer.start_as_current_span(
+                    name, context=current_context
+                ) as span:
+                    # Add attributes to span based on function name and args if desired
+                    span.set_attribute("function.name", func.__name__)
+
+                    # Execute the actual function
+                    return await func(self, *args, **kwargs)
+
+            except Exception as e:
+                # Log error and re-raise
+                logging.error(f"Error in {func.__name__}: {e}")
+                raise
 
         return wrapper
 
@@ -195,18 +214,37 @@ def span_decorator(name):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
-            tracer = getattr(self, "_tracer", None)
-            if not tracer:
-                return func(self, *args, **kwargs)
+            otel_context = kwargs.get("otel_context")
+            current_context = None
 
-            # Extract OpenTelemetry context from kwargs if available
-            otel_context = kwargs.pop("otel_context", None)
-            ctx: Optional[Context] = restore_otel_context(otel_context=otel_context)
+            try:
+                # Get the tracer if available
+                tracer = getattr(self, "_tracer", None)
+                if not tracer:
+                    # Just execute the function without tracing if no tracer
+                    return func(self, *args, **kwargs)
 
-            # Start span with context
-            with tracer.start_as_current_span(name, context=ctx) as span:
-                span.set_attribute("function.name", func.__name__)
-                return func(self, *args, **kwargs)
+                # Try to restore context if provided, otherwise use current context
+                if otel_context:
+                    try:
+                        current_context = restore_otel_context(otel_context)
+                    except Exception as e:
+                        logging.warning(f"Failed to restore OpenTelemetry context: {e}")
+
+                # Start a new span with appropriate context
+                with tracer.start_as_current_span(
+                    name, context=current_context
+                ) as span:
+                    # Add attributes to span based on function name
+                    span.set_attribute("function.name", func.__name__)
+
+                    # Execute the actual function
+                    return func(self, *args, **kwargs)
+
+            except Exception as e:
+                # Log error and re-raise
+                logging.error(f"Error in {func.__name__}: {e}")
+                raise
 
         return wrapper
 
