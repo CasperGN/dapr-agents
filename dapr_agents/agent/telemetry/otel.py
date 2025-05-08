@@ -392,7 +392,7 @@ def restore_otel_context(otel_context: dict[str, Any]) -> Optional[Context]:
             if span_context.is_valid:
                 current_span = trace.NonRecordingSpan(span_context)
                 ctx = trace.set_span_in_context(current_span, ctx)
-        
+
     return ctx
 
 
