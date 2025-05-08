@@ -387,7 +387,10 @@ class WorkflowApp(BaseModel):
 
     @span_decorator("run_workflow")
     def run_workflow(
-        self, workflow: Union[str, Callable], input: Union[str, Dict[str, Any]] = None
+        self,
+        workflow: Union[str, Callable],
+        input: Union[str, Dict[str, Any]] = None,
+        otel_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Starts a workflow execution.

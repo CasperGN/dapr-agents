@@ -3,7 +3,7 @@ import inspect
 import logging
 import threading
 import functools
-from typing import Callable
+from typing import Callable, Dict, Optional
 
 from dapr.aio.clients.grpc.subscription import Subscription
 from dapr.clients.grpc._response import TopicEventResponse
@@ -132,18 +132,22 @@ class MessageRoutingMixin:
         """
 
         @functools.wraps(method)
-        async def wrapped_method(message: dict):
+        async def wrapped_method(
+            message: dict, otel_context: Optional[Dict[str, str]] = None
+        ):
             try:
                 if getattr(method, "_is_workflow", False):
                     workflow_name = getattr(method, "_workflow_name", method.__name__)
-                    instance_id = self.run_workflow(workflow_name, input=message)
+                    instance_id = self.run_workflow(
+                        workflow_name, input=message, otel_context=otel_context
+                    )
                     asyncio.create_task(self.monitor_workflow_completion(instance_id))
                     return None
 
                 if inspect.iscoroutinefunction(method):
-                    return await method(message=message)
+                    return await method(message=message, otel_context=otel_context)
                 else:
-                    return method(message=message)
+                    return method(message=message, otel_context=otel_context)
 
             except Exception as e:
                 logger.error(
@@ -283,7 +287,7 @@ class MessageRoutingMixin:
             logger.info(
                 f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
             )
-            result = await handler(parsed_message, otel_context)
+            result = await handler(parsed_message, otel_context=otel_context)
             if result is not None:
                 return TopicEventResponse("success"), result
 
