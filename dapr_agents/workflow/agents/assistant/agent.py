@@ -532,7 +532,7 @@ class AssistantAgent(AgentWorkflowBase):
         response_message = BroadcastMessage(**message)
 
         # Broadcast message to all agents
-        await self.broadcast_message(message=response_message)
+        await self.broadcast_message(message=response_message, otel_context=otel_context)
 
     @task
     @async_span_decorator("respond_to_agent")
