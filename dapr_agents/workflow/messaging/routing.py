@@ -263,6 +263,7 @@ class MessageRoutingMixin:
             event_type: Type of the CloudEvent
             message_data: The actual message content
             metadata: Message metadata from CloudEvent
+            otel_context: Dict of W3C headers for tracing
 
         Returns:
             TopicEventResponse: The response status for the message
@@ -282,7 +283,7 @@ class MessageRoutingMixin:
             logger.info(
                 f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
             )
-            result = await handler(parsed_message)
+            result = await handler(parsed_message, otel_context)
             if result is not None:
                 return TopicEventResponse("success"), result
 
