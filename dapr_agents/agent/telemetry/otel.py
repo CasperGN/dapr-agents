@@ -177,6 +177,10 @@ def async_span_decorator(name="span"):
         async def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
             logging.info(f"### otel_context: {otel_context}")
+            if not otel_context:
+                otel_context = extract_otel_context()
+                kwargs["otel_context"] = otel_context
+                logging.info(f"### FIXED otel_context: {otel_context}")
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -222,6 +226,11 @@ def span_decorator(name):
         def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
             logging.info(f"### otel_context: {otel_context}")
+            if not otel_context:
+                otel_context = extract_otel_context()
+                kwargs["otel_context"] = otel_context
+                logging.info(f"### FIXED otel_context: {otel_context}")
+
             current_context = None
 
             try:
