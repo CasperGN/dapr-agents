@@ -222,6 +222,10 @@ class MessageRoutingMixin:
             otel_context = None
             actual_message_content = event_data
 
+            logger.info(f"Received message with type '{event_type}'")
+            logger.info(f"Message metadata: {metadata}")
+            logger.info(f"Message data: {event_data}")
+            logger.info(f"Message content: {actual_message_content}")
             # Check if the message contains a wrapped structure with OpenTelemetry context
             if (
                 isinstance(event_data, dict)
@@ -229,7 +233,6 @@ class MessageRoutingMixin:
                 and "otel_context" in event_data
             ):
                 otel_context = event_data.get("otel_context")
-                logger.info(f"Found OpenTelemetry context in message: {otel_context}")
                 actual_message_content = event_data.get("message_content")
 
                 return await self._process_message_with_context(
@@ -287,6 +290,7 @@ class MessageRoutingMixin:
             logger.info(
                 f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
             )
+            # TODO: I think this is a bug. We should extract the context from the parsed message
             result = await handler(parsed_message, otel_context=otel_context)
             if result is not None:
                 return TopicEventResponse("success"), result
