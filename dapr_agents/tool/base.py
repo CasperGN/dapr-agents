@@ -13,7 +13,7 @@ from dapr_agents.agent.telemetry import (
     async_span_decorator,
 )
 
-from opentelemetry import trace
+from opentelemetry import trace, context
 from opentelemetry.trace import Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
@@ -183,6 +183,12 @@ class AgentTool(BaseModel):
     def _log_and_raise_error(self, error: Exception) -> None:
         """Log the error and raise a ToolError."""
         logger.error(f"Error executing tool '{self.name}': {str(error)}")
+        # Clean up any potential stray context tokens
+        try:
+            # Reset to an empty context
+            context.attach(context.Context())
+        except Exception:
+            pass
         raise ToolError(
             f"An error occurred during the execution of tool '{self.name}': {str(error)}"
         )
