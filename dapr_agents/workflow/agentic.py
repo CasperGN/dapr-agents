@@ -170,7 +170,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                     path, method, methods=[method_type], **extra_kwargs
                 )
 
-    @span_decorator("start_as_service")
     def as_service(self, port: int, host: str = "0.0.0.0"):
         """
         Enables FastAPI-based service mode for the agent by initializing a FastAPI server instance.
@@ -195,13 +194,11 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
 
         return self
 
-    @span_decorator("handle_shutdown")
     def handle_shutdown_signal(self, sig):
         logger.info(f"Shutdown signal {sig} received. Stopping service gracefully...")
         self._shutdown_event.set()
         asyncio.create_task(self.stop())
 
-    @async_span_decorator("start")
     async def start(self):
         """
         Starts the agent workflow service, optionally as a FastAPI server if .as_service() was called.
@@ -253,7 +250,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         finally:
             await self.stop()
 
-    @async_span_decorator("stop")
     async def stop(self):
         """
         Gracefully stops the agent service by unsubscribing and stopping the HTTP server if present.
