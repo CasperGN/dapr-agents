@@ -26,7 +26,7 @@ import logging
 
 from pydantic import PrivateAttr
 from dapr_agents.agent.telemetry import (
-    llm_span_decorator,
+    span_decorator,
     restore_otel_context,
 )
 
@@ -140,7 +140,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
                 f"Unsupported model configuration type: {type(model_config.configuration)}"
             )
 
-    @llm_span_decorator("generate_chat")
+    @span_decorator("generate_chat")
     def generate(
         self,
         messages: Union[
@@ -211,52 +211,26 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             response_format=response_format,
             structured_mode=structured_mode,
         )
+        span = trace.get_current_span()
+        span.set_attribute("gen_ai.operation.name", "chat")
+        span.set_attribute("gen_ai.system", "openai")
+        span.set_attribute("openai.model", params["model"])
+        span.set_attribute("openai.messages_count", len(params["messages"]))
 
         try:
             logger.info("Invoking ChatCompletion API.")
             logger.debug(f"ChatCompletion API Parameters: {params}")
 
-            if self._tracer:
-                ctx = restore_otel_context(otel_context)
+            response: ChatCompletionMessage = self.client.chat.completions.create(
+                **params, timeout=self.timeout
+            )
 
-                with self._tracer.start_as_current_span(
-                    "openai.chat.completions.create", context=ctx
-                ) as api_span:
-                    api_span.set_attribute("gen_ai.operation.name", "chat")
-                    api_span.set_attribute("gen_ai.system", "openai")
-                    api_span.set_attribute("openai.model", params["model"])
-                    api_span.set_attribute(
-                        "openai.messages_count", len(params["messages"])
-                    )
-                    if "tools" in params:
-                        api_span.set_attribute(
-                            "openai.tools_count", len(params.get("tools", []))
-                        )
-
-                    start_time = time.time()
-                    response: ChatCompletionMessage = (
-                        self.client.chat.completions.create(
-                            **params, timeout=self.timeout
-                        )
-                    )
-                    duration_ms = (time.time() - start_time) * 1000
-
-                    if hasattr(response, "usage") and response.usage:
-                        api_span.set_attribute(
-                            "openai.prompt_tokens", response.usage.prompt_tokens
-                        )
-                        api_span.set_attribute(
-                            "openai.completion_tokens", response.usage.completion_tokens
-                        )
-                        api_span.set_attribute(
-                            "openai.total_tokens", response.usage.total_tokens
-                        )
-
-                    api_span.set_attribute("openai.response_time_ms", duration_ms)
-            else:
-                response: ChatCompletionMessage = self.client.chat.completions.create(
-                    **params, timeout=self.timeout
+            if hasattr(response, "usage") and response.usage:
+                span.set_attribute("openai.prompt_tokens", response.usage.prompt_tokens)
+                span.set_attribute(
+                    "openai.completion_tokens", response.usage.completion_tokens
                 )
+                span.set_attribute("openai.total_tokens", response.usage.total_tokens)
 
             logger.info("Chat completion retrieved successfully.")
             return ResponseHandler.process_response(
@@ -268,5 +242,5 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             )
         except Exception as e:
             logger.error(f"An error occurred during the ChatCompletion API call: {e}")
-            api_span.set_attribute("error.type", type(e).__name__)
+            span.set_attribute("error.type", type(e).__name__)
             raise
