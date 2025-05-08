@@ -669,7 +669,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         try:
             # Retrieve agents metadata while respecting the exclude_orchestrator flag
             agents_metadata = self.get_agents_metadata(
-                exclude_orchestrator=exclude_orchestrator, otel_context=otel_context
+                exclude_orchestrator=exclude_orchestrator
             )
 
             if not agents_metadata:
