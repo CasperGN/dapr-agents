@@ -18,7 +18,7 @@ from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import set_tracer_provider
+from opentelemetry.trace import set_tracer_provider, Status, StatusCode
 from opentelemetry.context.context import Context
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
@@ -167,43 +167,46 @@ class DaprAgentsOTel:
 _propagator = TraceContextTextMapPropagator()
 
 
-def async_span_decorator(name):
-    """Decorator that creates an OpenTelemetry span for an async method."""
+def async_span_decorator(name="span"):
+    """
+    Decorator for OpenTelemetry spans in async functions with proper error handling.
+    """
 
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
-            current_context = None
 
+            tracer = getattr(self, "_tracer", None)
+            if not tracer:
+                return await func(self, *args, **kwargs)
+
+            ctx = None
+            if otel_context:
+                try:
+                    ctx = restore_otel_context(otel_context)
+                except Exception as e:
+                    logging.warning(f"Failed to restore context: {e}")
+
+            span = None
             try:
-                # Get the tracer if available
-                tracer = getattr(self, "_tracer", None)
-                if not tracer:
-                    # Just execute the function without tracing if no tracer
-                    return await func(self, *args, **kwargs)
-
-                # Try to restore context if provided, otherwise use current context
-                if otel_context:
-                    try:
-                        current_context = restore_otel_context(otel_context)
-                    except Exception as e:
-                        logging.warning(f"Failed to restore OpenTelemetry context: {e}")
-
-                # Start a new span with appropriate context
-                with tracer.start_as_current_span(
-                    name, context=current_context
-                ) as span:
-                    # Add attributes to span based on function name and args if desired
+                span = tracer.start_span(name, context=ctx)
+                with tracer.use_span(span, end_on_exit=False):
                     span.set_attribute("function.name", func.__name__)
 
-                    # Execute the actual function
-                    return await func(self, *args, **kwargs)
-
-            except Exception as e:
-                # Log error and re-raise
-                logging.error(f"Error in {func.__name__}: {e}")
-                raise
+                    try:
+                        result = await func(self, *args, **kwargs)
+                        return result
+                    except Exception as e:
+                        span.set_status(Status(StatusCode.ERROR))
+                        span.record_exception(e)
+                        raise
+            finally:
+                try:
+                    if span:
+                        span.end()
+                except ValueError:
+                    pass
 
         return wrapper
 

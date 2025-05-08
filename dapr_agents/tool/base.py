@@ -9,7 +9,6 @@ from dapr_agents.tool.utils.function_calling import to_function_call_definition
 from dapr_agents.types import ToolError
 
 from dapr_agents.agent.telemetry import (
-    span_decorator,
     async_span_decorator,
 )
 
@@ -108,7 +107,6 @@ class AgentTool(BaseModel):
         if self.args_model is None:
             self.args_model = ToolHelper.infer_func_schema(self._run)
 
-    @span_decorator("validate_and_prep_args")
     def _validate_and_prepare_args(
         self, func: Callable, *args, **kwargs
     ) -> Dict[str, Any]:
@@ -183,12 +181,7 @@ class AgentTool(BaseModel):
     def _log_and_raise_error(self, error: Exception) -> None:
         """Log the error and raise a ToolError."""
         logger.error(f"Error executing tool '{self.name}': {str(error)}")
-        # Clean up any potential stray context tokens
-        try:
-            # Reset to an empty context
-            context.attach(context.Context())
-        except Exception:
-            pass
+
         raise ToolError(
             f"An error occurred during the execution of tool '{self.name}': {str(error)}"
         )
