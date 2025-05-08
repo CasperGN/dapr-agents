@@ -93,7 +93,6 @@ class RequestHandler:
         llm_provider: str,
         tools: Optional[List[Dict[str, Any]]] = None,
         response_format: Optional[Union[Type[BaseModel], Dict[str, Any]]] = None,
-        otel_context: Optional[Dict[str, Any]] = None,
         structured_mode: Literal["json", "function_call"] = "json",
     ) -> Dict[str, Any]:
         """

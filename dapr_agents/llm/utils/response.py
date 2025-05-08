@@ -6,9 +6,6 @@ from pydantic import BaseModel
 
 from dapr_agents.llm.utils import StreamHandler, StructureHandler
 from dapr_agents.types import ChatCompletion
-from dapr_agents.agent.telemetry import (
-    span_decorator,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +16,11 @@ class ResponseHandler:
     """
 
     @staticmethod
-    @span_decorator("process_response")
     def process_response(
         response: Any,
         llm_provider: str,
         response_format: Optional[Type[BaseModel]] = None,
         structured_mode: Literal["json", "function_call"] = "json",
-        otel_context: Optional[Dict[str, Any]] = None,
         stream: bool = False,
     ) -> Union[Iterator[Dict[str, Any]], Dict[str, Any]]:
         """

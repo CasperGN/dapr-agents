@@ -214,7 +214,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             tools=tools,
             response_format=response_format,
             structured_mode=structured_mode,
-            otel_context=otel_context,
         )
 
         try:
@@ -230,7 +229,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
                 llm_provider=self.provider,
                 response_format=response_format,
                 structured_mode=structured_mode,
-                otel_context=otel_context,
                 stream=params.get("stream", False),
             )
         except Exception as e:
