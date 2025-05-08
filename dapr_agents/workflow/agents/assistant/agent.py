@@ -472,7 +472,7 @@ class AssistantAgent(AgentWorkflowBase):
 
             # Execute tool function
             result = await self.tool_executor.run_tool(
-                function_name, **function_args_as_dict
+                function_name, otel_context=otel_context, **function_args_as_dict
             )
             # Construct tool execution message payload
             workflow_tool_message = {
