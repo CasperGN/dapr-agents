@@ -268,5 +268,5 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             )
         except Exception as e:
             logger.error(f"An error occurred during the ChatCompletion API call: {e}")
-            span.set_attribute("error.type", type(e).__name__)
+            api_span.set_attribute("error.type", type(e).__name__)
             raise
