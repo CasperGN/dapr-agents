@@ -795,7 +795,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
     @message_router
     @async_span_decorator("process_agent_response")
-    async def process_agent_response(self, message: AgentTaskResponse):
+    async def process_agent_response(self, message: AgentTaskResponse, otel_context: Optional[Dict[str, str]] = None):
         """
         Processes agent response messages sent directly to the agent's topic.
 
