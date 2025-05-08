@@ -111,7 +111,7 @@ class AgentToolExecutor(BaseModel):
     async def run_tool(
         self,
         tool_name: str,
-        otel_context: Optional[Dict[str, str]] = None,
+        otel_context: Dict[str, str],
         *args,
         **kwargs,
     ) -> Any:

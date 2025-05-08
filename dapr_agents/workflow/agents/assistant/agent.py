@@ -101,7 +101,7 @@ class AssistantAgent(AgentWorkflowBase):
         self,
         ctx: DaprWorkflowContext,
         message: TriggerAction,
-        otel_context: Optional[Dict[str, str]] = None,
+        otel_context: Dict[str, str],
     ):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).

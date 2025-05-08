@@ -93,8 +93,8 @@ class DaprPubSub(BaseModel):
         pubsub_name: str,
         source: str,
         message: Union[BaseModel, dict, Any],
+        otel_context: Dict[str, str],
         message_type: Optional[str] = None,
-        otel_context: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         """

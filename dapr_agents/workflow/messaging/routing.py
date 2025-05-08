@@ -133,7 +133,8 @@ class MessageRoutingMixin:
 
         @functools.wraps(method)
         async def wrapped_method(
-            message: dict, otel_context: Optional[Dict[str, str]] = None
+            message: dict,
+            otel_context: Dict[str, str],
         ):
             try:
                 if getattr(method, "_is_workflow", False):

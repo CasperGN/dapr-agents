@@ -143,9 +143,7 @@ class AgentTool(BaseModel):
             self._log_and_raise_error(e)
 
     @async_span_decorator("arun")
-    async def arun(
-        self, otel_context: Optional[Dict[str, str]] = None, *args, **kwargs
-    ) -> Any:
+    async def arun(self, otel_context: Dict[str, str], *args, **kwargs) -> Any:
         """
         Execute the tool asynchronously (whether it's sync or async under the hood).
         """
@@ -160,9 +158,7 @@ class AgentTool(BaseModel):
         except Exception as e:
             self._log_and_raise_error(e)
 
-    def _run(
-        self, otel_context: Optional[Dict[str, str]] = None, *args, **kwargs
-    ) -> Any:
+    def _run(self, otel_context: Dict[str, str], *args, **kwargs) -> Any:
         """Fallback default run logic if no `func` is set."""
         if self.func:
             return self.func(otel_context=otel_context * args, **kwargs)

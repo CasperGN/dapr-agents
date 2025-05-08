@@ -1,7 +1,7 @@
 from logging import Logger
 import os
 import time
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import functools
 import logging
@@ -176,6 +176,7 @@ def async_span_decorator(name="span"):
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
+            logging.info(f"### otel_context: {otel_context}")
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -220,6 +221,7 @@ def span_decorator(name):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
+            logging.info(f"### otel_context: {otel_context}")
             current_context = None
 
             try:
@@ -256,7 +258,7 @@ def span_decorator(name):
     return decorator
 
 
-def restore_otel_context(otel_context: dict[str, Any]) -> Optional[Context]:
+def restore_otel_context(otel_context: dict[str, str]) -> Optional[Context]:
     """
     Restore OpenTelemetry context from a previously extracted context dictionary.
     Creates a fresh context to avoid token errors across async boundaries.
@@ -300,12 +302,12 @@ def restore_otel_context(otel_context: dict[str, Any]) -> Optional[Context]:
     return ctx
 
 
-def extract_otel_context() -> dict[str, Any]:
+def extract_otel_context() -> dict[str, str]:
     """
     Extract current OpenTelemetry context for cross-boundary propagation.
     Returns a format that can be properly serialized by Dapr workflows.
     """
-    carrier: dict[str, Any] = {}
+    carrier: dict[str, str] = {}
     _propagator.inject(carrier)
 
     span = trace.get_current_span()

@@ -520,9 +520,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     @span_decorator("save_state")
     def save_state(
         self,
+        otel_context: Dict[str, str],
         state: Optional[Union[dict, BaseModel, str]] = None,
         force_reload: bool = False,
-        otel_context: Optional[Dict[str, str]] = None,
     ) -> None:
         """
         Saves the current workflow state to the Dapr state store and optionally as a local backup.
@@ -654,8 +654,8 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     async def broadcast_message(
         self,
         message: Union[BaseModel, dict],
+        otel_context: Dict[str, str],
         exclude_orchestrator: bool = False,
-        otel_context: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         """
@@ -703,7 +703,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         self,
         name: str,
         message: Union[BaseModel, dict],
-        otel_context: Optional[Dict[str, str]] = None,
+        otel_context: Dict[str, str],
         **kwargs,
     ) -> None:
         """
@@ -791,7 +791,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     async def run_workflow_from_request(
         self,
         request: Request,
-        otel_context: Optional[Dict[str, str]] = None,
+        otel_context: Dict[str, str],
     ) -> JSONResponse:
         """
         Run a workflow instance triggered by an incoming HTTP POST request.

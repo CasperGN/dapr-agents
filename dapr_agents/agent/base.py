@@ -123,7 +123,7 @@ class AgentBase(BaseModel, ABC):
     def run(
         self,
         input_data: Union[str, Dict[str, Any]],
-        otel_context: Optional[Dict[str, str]] = None,
+        otel_context: Dict[str, str],
     ) -> Any:
         """
         Executes the agent's main logic based on provided inputs.
@@ -303,7 +303,7 @@ class AgentBase(BaseModel, ABC):
     def construct_messages(
         self,
         input_data: Union[str, Dict[str, Any]],
-        otel_context: Optional[Dict[str, str]] = None,
+        otel_context: Optional[Dict[str, str]],
     ) -> List[Dict[str, Any]]:
         """
         Constructs and formats initial messages based on input type, pre-filling chat history as needed.
