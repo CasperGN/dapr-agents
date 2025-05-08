@@ -191,7 +191,7 @@ def async_span_decorator(name="span"):
             span = None
             try:
                 span = tracer.start_span(name, context=ctx)
-                with tracer.use_span(span, end_on_exit=False):
+                with trace.use_span(span, end_on_exit=False):
                     span.set_attribute("function.name", func.__name__)
 
                     try:
