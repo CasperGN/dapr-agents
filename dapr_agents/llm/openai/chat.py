@@ -27,10 +27,12 @@ import logging
 from pydantic import PrivateAttr
 from dapr_agents.agent.telemetry import (
     llm_span_decorator,
+    restore_otel_context,
 )
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
+from opentelemetry.context.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -170,12 +172,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         Returns:
             Union[Iterator[Dict[str, Any]], Dict[str, Any]]: The chat completion response(s).
         """
-
-        # Add Semantic Conventions for GenAI
-        span = trace.get_current_span()
-        span.set_attribute("gen_ai.operation.name", "chat")
-        span.set_attribute("gen_ai.system", "openai")
-
         if structured_mode not in self.SUPPORTED_STRUCTURED_MODES:
             raise ValueError(
                 f"Invalid structured_mode '{structured_mode}'. Must be one of {self.SUPPORTED_STRUCTURED_MODES}."
@@ -206,7 +202,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
 
         # If a model is provided, override the default model
         params["model"] = model or self.model
-        span.set_attribute("gen_ai.request.model", params["model"])
 
         # Prepare request parameters
         params = RequestHandler.process_params(
@@ -222,18 +217,13 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             logger.debug(f"ChatCompletion API Parameters: {params}")
 
             if self._tracer:
-                current_context = None
-                if otel_context:
-                    try:
-                        from dapr_agents.agent.telemetry import restore_otel_context
-
-                        current_context = restore_otel_context(otel_context)
-                    except Exception as e:
-                        logger.warning(f"Failed to restore context: {e}")
+                ctx = restore_otel_context(otel_context)
 
                 with self._tracer.start_as_current_span(
-                    "openai.chat.completions.create", context=current_context
+                    "openai.chat.completions.create", context=ctx
                 ) as api_span:
+                    api_span.set_attribute("gen_ai.operation.name", "chat")
+                    api_span.set_attribute("gen_ai.system", "openai")
                     api_span.set_attribute("openai.model", params["model"])
                     api_span.set_attribute(
                         "openai.messages_count", len(params["messages"])

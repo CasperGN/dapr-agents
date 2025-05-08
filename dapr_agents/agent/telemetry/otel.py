@@ -377,42 +377,22 @@ def span_decorator(name):
 
 
 def restore_otel_context(otel_context: dict[str, Any]) -> Optional[Context]:
-    """
-    Restore OpenTelemetry context from a previously extracted context dictionary.
-
-    Args:
-        otel_context: Dictionary containing context information
-
-    Returns:
-        Context object that can be used with tracer.start_as_current_span()
-    """
-    if not otel_context:
-        return None
-
-    try:
-        # First try using standard W3C headers
+    ctx = Context()
+    if otel_context and "traceparent" in otel_context:
         carrier = {
             "traceparent": otel_context.get("traceparent", ""),
             "tracestate": otel_context.get("tracestate", ""),
         }
 
-        # If traceparent is missing but we have the raw components, reconstruct it
-        if not carrier["traceparent"] and all(
-            k in otel_context for k in ["trace_id", "span_id", "trace_flags"]
-        ):
-            trace_id = otel_context["trace_id"]
-            span_id = otel_context["span_id"]
-            flags = otel_context["trace_flags"]
-            carrier["traceparent"] = f"00-{trace_id}-{span_id}-{flags}"
-            logging.debug("Reconstructed traceparent from components")
+        temp_ctx = _propagator.extract(carrier=carrier)
 
-        # Extract context from carrier
-        ctx = _propagator.extract(carrier=carrier)
-        logging.debug(f"Restored context: trace={carrier.get('traceparent', '')}")
+        temp_span = trace.get_current_span(temp_ctx)
+        if temp_span:
+            span_context = temp_span.get_span_context()
+            if span_context.is_valid:
+                current_span = trace.NonRecordingSpan(span_context)
+                ctx = trace.set_span_in_context(current_span, ctx)
         return ctx
-    except Exception as e:
-        logging.warning(f"Failed to restore context: {e}")
-        return None
 
 
 def extract_otel_context() -> dict[str, Any]:
