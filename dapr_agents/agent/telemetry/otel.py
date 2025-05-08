@@ -321,6 +321,8 @@ def extract_otel_context() -> dict[str, str]:
 
     span = trace.get_current_span()
     ctx = span.get_span_context()
+    logging.info(f"### ctx: {ctx}")
+    logging.info(f"### span: {span}")
 
     # Always extract these values regardless of condition
     trace_id = format(ctx.trace_id, "032x")
