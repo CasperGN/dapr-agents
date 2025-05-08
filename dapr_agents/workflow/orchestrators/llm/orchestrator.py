@@ -471,7 +471,12 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     @task
     @async_span_decorator("trigger_agent")
     async def trigger_agent(
-        self, instance_id: str, name: str, step: int, substep: Optional[float]
+        self,
+        instance_id: str,
+        name: str,
+        step: int,
+        substep: Optional[float],
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> List[dict[str, Any]]:
         """
         Updates step status and triggers the specified agent to perform its activity.
@@ -517,7 +522,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Send message to agent
         await self.send_message_to_agent(
-            name=name, message=TriggerAction(workflow_instance_id=instance_id)
+            name=name,
+            message=TriggerAction(workflow_instance_id=instance_id),
+            otel_context=otel_context,
         )
 
         return updated_plan

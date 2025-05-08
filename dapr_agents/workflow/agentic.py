@@ -593,7 +593,10 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
 
     @span_decorator("get_agents_metadata")
     def get_agents_metadata(
-        self, exclude_self: bool = True, exclude_orchestrator: bool = False
+        self,
+        exclude_self: bool = True,
+        exclude_orchestrator: bool = False,
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> dict:
         """
         Retrieves metadata for all registered agents while ensuring orchestrators do not interact with other orchestrators.
@@ -704,7 +707,11 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
 
     @async_span_decorator("send_message_to_agent")
     async def send_message_to_agent(
-        self, name: str, message: Union[BaseModel, dict], **kwargs
+        self,
+        name: str,
+        message: Union[BaseModel, dict],
+        otel_context: Optional[Dict[str, str]] = None,
+        **kwargs,
     ) -> None:
         """
         Sends a message to a specific agent.
@@ -715,7 +722,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             **kwargs: Additional metadata fields to include in the message.
         """
         try:
-            agents_metadata = self.get_agents_metadata()
+            agents_metadata = self.get_agents_metadata(otel_context=otel_context)
 
             if name not in agents_metadata:
                 logger.warning(
