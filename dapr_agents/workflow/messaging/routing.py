@@ -17,6 +17,9 @@ from dapr_agents.agent.telemetry import restore_otel_context
 from dapr_agents.workflow.messaging.utils import is_valid_routable_model
 from dapr_agents.workflow.utils import get_decorated_methods
 from opentelemetry import trace
+from dapr_agents.agent.telemetry import (
+    async_span_decorator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,20 @@ class MessageRoutingMixin:
     - `self._topic_handlers`: Dict storing routing info by (pubsub, topic).
     - `self._subscriptions`: Dict storing unsubscribe functions for active subscriptions.
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        try:
+            provider = trace.get_tracer_provider()
+
+            self._tracer = provider.get_tracer("openai_chat_tracer")
+
+        except Exception as e:
+            logger.warning(
+                f"OpenTelemetry initialization failed: {e}. Continuing without telemetry."
+            )
+            self._tracer = None
 
     def register_message_routes(self) -> None:
         """
@@ -207,43 +224,20 @@ class MessageRoutingMixin:
                 and "message_content" in event_data
                 and "otel_context" in event_data
             ):
-                # Extract the OpenTelemetry context and the original message content
                 otel_context = event_data.get("otel_context")
-                logger.info(f"Restoring OpenTelemetry context: {otel_context}")
+                logger.info(f"Found OpenTelemetry context in message: {otel_context}")
                 actual_message_content = event_data.get("message_content")
 
-                # Set up propagated context for the message processing
-                if (
-                    hasattr(self, "_tracer")
-                    and self._tracer is not None
-                    and otel_context
-                ):
-                    try:
-                        # Restore the trace context from the sender
-                        ctx = restore_otel_context(otel_context)
-
-                        # Create a span within the restored context
-                        with self._tracer.start_as_current_span(
-                            f"process_{event_type}",
-                            context=ctx,
-                            kind=trace.SpanKind.CONSUMER,
-                        ) as span:
-                            span.set_attribute("messaging.system", "dapr_pubsub")
-                            span.set_attribute("messaging.destination", topic_name)
-                            span.set_attribute("messaging.event_type", event_type)
-
-                            # Process the message within the trace context
-                            return await self._process_message_with_context(
-                                handler_map,
-                                event_type,
-                                actual_message_content,
-                                metadata,
-                            )
-                    except Exception as e:
-                        logger.warning(f"Failed to restore OpenTelemetry context: {e}")
-                        # Continue processing without the context
+                return await self._process_message_with_context(
+                    handler_map,
+                    event_type,
+                    actual_message_content,
+                    metadata,
+                    otel_context=otel_context,
+                )
 
             # Process message normally if no context or if context restoration failed
+            logger.info("Processing message without OpenTelemetry context.")
             return await self._process_message_with_context(
                 handler_map, event_type, actual_message_content, metadata
             )
@@ -252,8 +246,14 @@ class MessageRoutingMixin:
             logger.error(f"Unexpected error during message routing: {e}", exc_info=True)
             return TopicEventResponse("retry")
 
+    @async_span_decorator("process_message_with_context")
     async def _process_message_with_context(
-        self, handler_map: dict, event_type: str, message_data: dict, metadata: dict
+        self,
+        handler_map: dict,
+        event_type: str,
+        message_data: dict,
+        metadata: dict,
+        otel_context: dict = None,
     ) -> TopicEventResponse:
         """
         Process the message content with the appropriate handler.
