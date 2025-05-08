@@ -126,8 +126,6 @@ class RequestHandler:
                 **params,
             )
 
-        logger.info(f"### params: {params}")
-
         return params
 
     @staticmethod

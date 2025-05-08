@@ -124,27 +124,30 @@ class AgentToolExecutor(BaseModel):
             AgentToolExecutorError: If the tool is not found or execution fails.
         """
         span = trace.get_current_span()
+        span.set_attribute("tool.name", tool_name)
+
         tool = self.get_tool(tool_name)
         if not tool:
             logger.error(f"Tool not found: {tool_name}")
+            span.set_status(Status(StatusCode.ERROR))
+            span.set_attribute("error.type", "tool_not_found")
             raise AgentToolExecutorError(f"Tool '{tool_name}' not found.")
         try:
             logger.info(f"Running tool (auto): {tool_name}")
             if tool._is_async:
                 return await tool.arun(*args, **kwargs)
             return tool(*args, **kwargs)
-        except ToolError as e:
-            logger.error(f"Tool execution error in '{tool_name}': {e}")
-            span.set_status(Status(StatusCode.ERROR))
-            span.record_exception(e)
-            raise AgentToolExecutorError(str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error in '{tool_name}': {e}")
             span.set_status(Status(StatusCode.ERROR))
             span.record_exception(e)
-            raise AgentToolExecutorError(
-                f"Unexpected error in tool '{tool_name}': {e}"
-            ) from e
+
+            if isinstance(e, ToolError):
+                raise AgentToolExecutorError(str(e)) from e
+            else:
+                raise AgentToolExecutorError(
+                    f"Unexpected error in tool '{tool_name}': {e}"
+                ) from e
 
     @property
     def help(self) -> None:
