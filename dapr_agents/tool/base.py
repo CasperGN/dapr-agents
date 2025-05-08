@@ -87,7 +87,7 @@ class AgentTool(BaseModel):
             self._initialize_from_run()
 
         try:
-            provider = provider = trace.get_tracer_provider()
+            provider = trace.get_tracer_provider()
 
             self._tracer = provider.get_tracer(f"{self.name}_tracer")
         except Exception as e:

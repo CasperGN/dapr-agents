@@ -62,7 +62,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         """
 
         try:
-            provider = provider = trace.get_tracer_provider()
+            provider = trace.get_tracer_provider()
 
             self._tracer = provider.get_tracer("openai_chat_tracer")
 

@@ -38,7 +38,7 @@ class AgentToolExecutor(BaseModel):
         logger.info(f"Tool Executor initialized with {len(self._tools_map)} tool(s).")
 
         try:
-            provider = provider = trace.get_tracer_provider()
+            provider = trace.get_tracer_provider()
 
             self._tracer = provider.get_tracer("agent_tool_exec_tracer")
         except Exception as e:
