@@ -209,6 +209,7 @@ class MessageRoutingMixin:
             ):
                 # Extract the OpenTelemetry context and the original message content
                 otel_context = event_data.get("otel_context")
+                logger.info(f"Restoring OpenTelemetry context: {otel_context}")
                 actual_message_content = event_data.get("message_content")
 
                 # Set up propagated context for the message processing

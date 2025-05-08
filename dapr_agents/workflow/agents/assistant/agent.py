@@ -344,7 +344,6 @@ class AssistantAgent(AgentWorkflowBase):
             tool_choice=self.tool_choice,
             otel_context=otel_context,
         )
-        logger.info(f"### LLM Response={response.model_dump()}")
 
         # Return chat completion as a dictionary
         return response.model_dump()
