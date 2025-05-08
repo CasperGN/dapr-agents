@@ -49,6 +49,8 @@ class ToolHelper:
         """
         from dapr_agents.tool.base import AgentTool
 
+        logger.info("Inside format_tool!")
+
         if callable(tool) and not isinstance(tool, AgentTool):
             tool = AgentTool.from_func(tool)
         elif isinstance(tool, dict):

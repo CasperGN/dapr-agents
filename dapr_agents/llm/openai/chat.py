@@ -214,6 +214,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             response_format=response_format,
             structured_mode=structured_mode,
         )
+        logger.info("### Outside again!")
         span = trace.get_current_span()
         span.set_attribute("gen_ai.operation.name", "chat")
         span.set_attribute("gen_ai.system", "openai")
