@@ -354,7 +354,10 @@ class AssistantAgent(AgentWorkflowBase):
         return response.model_dump()
 
     @task
-    def get_response_message(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    @span_decorator("get_response_message")
+    def get_response_message(
+        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         Extracts the response message from the first choice in the LLM response.
 
@@ -364,6 +367,7 @@ class AssistantAgent(AgentWorkflowBase):
         Returns:
             Dict[str, Any]: The extracted response message with the agent's name added.
         """
+
         choices = response.get("choices", [])
         response_message = choices[0].get("message", {})
 
