@@ -1,4 +1,5 @@
 import os
+import time
 from dapr_agents.types.llm import AzureOpenAIModelConfig, OpenAIModelConfig
 from dapr_agents.llm.utils import RequestHandler, ResponseHandler
 from dapr_agents.llm.openai.client.base import OpenAIClientBase
@@ -219,11 +220,55 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         try:
             logger.info("Invoking ChatCompletion API.")
             logger.debug(f"ChatCompletion API Parameters: {params}")
-            response: ChatCompletionMessage = self.client.chat.completions.create(
-                **params, timeout=self.timeout
-            )
-            logger.info("Chat completion retrieved successfully.")
 
+            if self._tracer:
+                current_context = None
+                if otel_context:
+                    try:
+                        from dapr_agents.agent.telemetry import restore_otel_context
+
+                        current_context = restore_otel_context(otel_context)
+                    except Exception as e:
+                        logger.warning(f"Failed to restore context: {e}")
+
+                with self._tracer.start_as_current_span(
+                    "openai.chat.completions.create", context=current_context
+                ) as api_span:
+                    api_span.set_attribute("openai.model", params["model"])
+                    api_span.set_attribute(
+                        "openai.messages_count", len(params["messages"])
+                    )
+                    if "tools" in params:
+                        api_span.set_attribute(
+                            "openai.tools_count", len(params.get("tools", []))
+                        )
+
+                    start_time = time.time()
+                    response: ChatCompletionMessage = (
+                        self.client.chat.completions.create(
+                            **params, timeout=self.timeout
+                        )
+                    )
+                    duration_ms = (time.time() - start_time) * 1000
+
+                    if hasattr(response, "usage") and response.usage:
+                        api_span.set_attribute(
+                            "openai.prompt_tokens", response.usage.prompt_tokens
+                        )
+                        api_span.set_attribute(
+                            "openai.completion_tokens", response.usage.completion_tokens
+                        )
+                        api_span.set_attribute(
+                            "openai.total_tokens", response.usage.total_tokens
+                        )
+
+                    api_span.set_attribute("openai.response_time_ms", duration_ms)
+            else:
+                response: ChatCompletionMessage = self.client.chat.completions.create(
+                    **params, timeout=self.timeout
+                )
+
+            logger.info("Chat completion retrieved successfully.")
             return ResponseHandler.process_response(
                 response,
                 llm_provider=self.provider,
