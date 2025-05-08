@@ -377,21 +377,65 @@ def span_decorator(name):
 
 
 def restore_otel_context(otel_context: dict[str, Any]) -> Optional[Context]:
+    """
+    Restore OpenTelemetry context from a previously extracted context dictionary.
+    Creates a fresh context to avoid token errors across async boundaries.
+
+    Args:
+        otel_context: Dictionary containing context information
+
+    Returns:
+        Context object that can be used with tracer.start_as_current_span()
+    """
+    # Create a completely new context - this avoids token issues
     ctx = Context()
-    if otel_context and "traceparent" in otel_context:
-        carrier = {
-            "traceparent": otel_context.get("traceparent", ""),
-            "tracestate": otel_context.get("tracestate", ""),
-        }
 
-        temp_ctx = _propagator.extract(carrier=carrier)
+    if not otel_context or "traceparent" not in otel_context:
+        return ctx
 
-        temp_span = trace.get_current_span(temp_ctx)
-        if temp_span:
-            span_context = temp_span.get_span_context()
-            if span_context.is_valid:
-                current_span = trace.NonRecordingSpan(span_context)
-                ctx = trace.set_span_in_context(current_span, ctx)
+    try:
+        # Get just the trace info we need
+        traceparent = otel_context.get("traceparent", "")
+        tracestate = otel_context.get("tracestate", "")
+
+        # Manually parse the traceparent to extract trace ID and span ID
+        # Format: "00-{trace_id}-{span_id}-{flags}"
+        parts = traceparent.split("-")
+        if len(parts) < 4:
+            return ctx
+
+        trace_id_hex = parts[1]
+        span_id_hex = parts[2]
+        flags_hex = parts[3]
+
+        # Convert hex strings to integers
+        try:
+            trace_id = int(trace_id_hex, 16)
+            span_id = int(span_id_hex, 16)
+            flags = int(flags_hex, 16)
+
+            # Create a SpanContext directly without using the propagator
+            from opentelemetry.trace.span import TraceFlags, SpanContext
+
+            span_context = SpanContext(
+                trace_id=trace_id,
+                span_id=span_id,
+                is_remote=True,
+                trace_flags=TraceFlags(flags),
+                trace_state=tracestate,
+            )
+
+            # Create a span with this context
+            span = trace.NonRecordingSpan(span_context)
+
+            # Set this span in our fresh context
+            ctx = trace.set_span_in_context(span, ctx)
+
+        except (ValueError, TypeError) as e:
+            logging.warning(f"Failed to parse trace context values: {e}")
+
+    except Exception as e:
+        logging.warning(f"Failed to restore context: {e}")
 
     return ctx
 
