@@ -892,7 +892,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 f"{self.name} processing agent response for workflow instance '{workflow_instance_id}'."
             )
             # Set the W3C headers for OpenTelemetry tracing context propagation through DaprWorkflowClient
-            message.otel_context = otel_context
+            setattr(message, "otel_context", otel_context)
 
             # Raise a workflow event with the Agent's Task Response
             self.raise_workflow_event(
