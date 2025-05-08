@@ -754,9 +754,7 @@ class WorkflowApp(BaseModel):
             raise e
 
     @span_decorator("when_all")
-    def when_all(
-        self, tasks: List[dtask.Task[T]], otel_context: Dict[str, Any] = None
-    ) -> dtask.WhenAllTask[T]:
+    def when_all(self, tasks: List[dtask.Task[T]]) -> dtask.WhenAllTask[T]:
         """
         Waits for all given tasks to complete.
 

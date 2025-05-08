@@ -215,7 +215,7 @@ class AssistantAgent(AgentWorkflowBase):
                     "parallel_tool_execution"
                 ) as parallel_span:
                     parallel_span.set_attribute("tool_calls.count", len(tool_calls))
-                    yield self.when_all(parallel_tasks, extract_otel_context())
+                    yield self.when_all(parallel_tasks)
             else:
                 # Fall back if no tracer is available
                 span.add_event(
