@@ -655,6 +655,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         self,
         message: Union[BaseModel, dict],
         exclude_orchestrator: bool = False,
+        otel_context: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         """
@@ -668,7 +669,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         try:
             # Retrieve agents metadata while respecting the exclude_orchestrator flag
             agents_metadata = self.get_agents_metadata(
-                exclude_orchestrator=exclude_orchestrator
+                exclude_orchestrator=exclude_orchestrator, otel_context=otel_context
             )
 
             if not agents_metadata:
@@ -679,18 +680,10 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 f"{self.name} broadcasting message to {self.broadcast_topic_name}."
             )
 
-            # Add attributes to current span if tracer exists
-            otel_context = {}
-            if self._tracer:
-                # Extract the current context for propagation across service boundaries
-                otel_context = extract_otel_context()
-
-                # Add attributes to current span if tracer exists
-                span = trace.get_current_span()
-                if span and span.is_recording():
-                    span.set_attribute("message.destination", self.broadcast_topic_name)
-                    span.set_attribute("message.recipients_count", len(agents_metadata))
-                    span.set_attribute("message.type", type(message).__name__)
+            span = trace.get_current_span()
+            span.set_attribute("message.destination", self.broadcast_topic_name)
+            span.set_attribute("message.recipients_count", len(agents_metadata))
+            span.set_attribute("message.type", type(message).__name__)
 
             await self.publish_event_message(
                 topic_name=self.broadcast_topic_name,

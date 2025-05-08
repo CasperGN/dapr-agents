@@ -396,7 +396,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
     @task
     @async_span_decorator("broadcast_msg_to_agents")
-    async def broadcast_message_to_agents(self, instance_id: str, task: str):
+    async def broadcast_message_to_agents(
+        self, instance_id: str, task: str, otel_context: Optional[Dict[str, str]] = None
+    ):
         """
         Saves message to workflow state and broadcasts it to all registered agents.
 
@@ -412,13 +414,16 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         await self.update_workflow_state(
             instance_id=instance_id,
             message={"name": self.name, "role": "user", "content": task},
+            otel_context=otel_context,
         )
 
         # Format message for broadcasting
         task_message = BroadcastMessage(name=self.name, role="user", content=task)
 
         # Send broadcast message
-        await self.broadcast_message(message=task_message, exclude_orchestrator=True)
+        await self.broadcast_message(
+            message=task_message, exclude_orchestrator=True, otel_context=otel_context
+        )
 
     @task(description=NEXT_STEP_PROMPT, include_chat_history=True)
     @async_span_decorator("generate_next_step")
@@ -761,6 +766,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         message: Optional[Dict[str, Any]] = None,
         final_output: Optional[str] = None,
         plan: Optional[List[Dict[str, Any]]] = None,
+        otel_context: Optional[Dict[str, str]] = None,
     ):
         """
         Updates the workflow state with a new message, execution plan, or final output.

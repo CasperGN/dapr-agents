@@ -561,7 +561,9 @@ class AssistantAgent(AgentWorkflowBase):
         agent_response = AgentTaskResponse(**response)
 
         # Send the message to the target agent
-        await self.send_message_to_agent(name=target_agent, message=agent_response)
+        await self.send_message_to_agent(
+            name=target_agent, message=agent_response, otel_context=otel_context
+        )
 
     @task
     @async_span_decorator("finish_workflow")
@@ -579,11 +581,15 @@ class AssistantAgent(AgentWorkflowBase):
             summary (Dict[str, Any]): The final summary to be stored in the workflow state.
         """
         # Store message in workflow state
-        await self.update_workflow_state(instance_id=instance_id, message=message)
+        await self.update_workflow_state(
+            instance_id=instance_id, message=message, otel_context=otel_context
+        )
 
         # Store final output
         await self.update_workflow_state(
-            instance_id=instance_id, final_output=message["content"]
+            instance_id=instance_id,
+            final_output=message["content"],
+            otel_context=otel_context,
         )
 
     @async_span_decorator("update_wf_state")
