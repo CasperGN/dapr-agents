@@ -8,6 +8,8 @@ from dapr_agents.tool.utils.tool import ToolHelper
 from dapr_agents.tool.utils.function_calling import to_function_call_definition
 from dapr_agents.types import ToolError
 
+from dapr_agents.agent.telemetry import async_span_decorator
+
 
 logger = logging.getLogger(__name__)
 
@@ -140,21 +142,30 @@ class AgentTool(BaseModel):
         except Exception as e:
             self._log_and_raise_error(e)
 
-    async def arun(self, *args, **kwargs) -> Any:
+    @async_span_decorator("arun")
+    async def arun(
+        self, otel_context: Optional[Dict[str, str]] = None, *args, **kwargs
+    ) -> Any:
         """
         Execute the tool asynchronously (whether it's sync or async under the hood).
         """
         try:
             func = self.func or self._run
             kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
-            return await func(**kwargs) if self._is_async else func(**kwargs)
+            return (
+                await func(otel_context=otel_context, **kwargs)
+                if self._is_async
+                else func(otel_context=otel_context, **kwargs)
+            )
         except Exception as e:
             self._log_and_raise_error(e)
 
-    def _run(self, *args, **kwargs) -> Any:
+    def _run(
+        self, otel_context: Optional[Dict[str, str]] = None, *args, **kwargs
+    ) -> Any:
         """Fallback default run logic if no `func` is set."""
         if self.func:
-            return self.func(*args, **kwargs)
+            return self.func(otel_context=otel_context * args, **kwargs)
         raise NotImplementedError("No function or _run method defined for this tool.")
 
     def _log_and_raise_error(self, error: Exception) -> None:

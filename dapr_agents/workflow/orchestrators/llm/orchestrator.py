@@ -84,7 +84,12 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     @message_router
     @workflow(name="LLMWorkflow")
     @span_decorator("main_workflow")
-    def main_workflow(self, ctx: DaprWorkflowContext, message: TriggerAction):
+    def main_workflow(
+        self,
+        ctx: DaprWorkflowContext,
+        message: TriggerAction,
+        otel_context: Optional[Dict[str, str]] = None,
+    ):
         """
         Executes an LLM-driven agentic workflow where the next agent is dynamically selected
         based on task progress. The workflow iterates through execution cycles, updating state,
@@ -133,7 +138,12 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             # Generate the plan using a language model
             plan = yield ctx.call_activity(
                 self.generate_plan,
-                input={"task": task, "agents": agents, "plan_schema": schemas.plan},
+                input={
+                    "task": task,
+                    "agents": agents,
+                    "plan_schema": schemas.plan,
+                    "otel_context": otel_context,
+                },
             )
 
             # Prepare initial message with task, agents and plan context
@@ -144,13 +154,18 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                     "task": task,
                     "agents": agents,
                     "plan": plan,
+                    "otel_context": otel_context,
                 },
             )
 
             # broadcast initial message to all agents
             yield ctx.call_activity(
                 self.broadcast_message_to_agents,
-                input={"instance_id": instance_id, "task": initial_message},
+                input={
+                    "instance_id": instance_id,
+                    "task": initial_message,
+                    "otel_context": otel_context,
+                },
             )
 
         # Step 4: Identify agent and instruction for the next step
@@ -161,6 +176,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 "agents": agents,
                 "plan": plan,
                 "next_step_schema": schemas.next_step,
+                "otel_context": otel_context,
             },
         )
 
@@ -178,6 +194,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 "plan": plan,
                 "step": step_id,
                 "substep": substep_id,
+                "otel_context": otel_context,
             },
         )
 
@@ -185,7 +202,11 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             # Step 6: Broadcast Task to all Agents
             yield ctx.call_activity(
                 self.broadcast_message_to_agents,
-                input={"instance_id": instance_id, "task": instruction},
+                input={
+                    "instance_id": instance_id,
+                    "task": instruction,
+                    "otel_context": otel_context,
+                },
             )
 
             # Step 7: Trigger next agent
@@ -196,6 +217,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                     "name": next_agent,
                     "step": step_id,
                     "substep": substep_id,
+                    "otel_context": otel_context,
                 },
             )
 
@@ -288,6 +310,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                     "substep": substep_id,
                     "agent": next_agent,
                     "result": task_results["content"],
+                    "otel_context": otel_context,
                 },
             )
 
@@ -301,6 +324,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                     "substep": substep_id,
                     "verdict": verdict,
                     "summary": summary,
+                    "otel_context": otel_context,
                 },
             )
 
@@ -354,7 +378,11 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     @task(description=TASK_PLANNING_PROMPT)
     @async_span_decorator("generate_plan")
     async def generate_plan(
-        self, task: str, agents: str, plan_schema: str
+        self,
+        task: str,
+        agents: str,
+        plan_schema: str,
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> List[PlanStep]:
         """
         Generates a structured execution plan for the given task.
@@ -372,7 +400,12 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     @task
     @async_span_decorator("prepare_init_msg")
     async def prepare_initial_message(
-        self, instance_id: str, task: str, agents: str, plan: List[Dict[str, Any]]
+        self,
+        instance_id: str,
+        task: str,
+        agents: str,
+        plan: List[Dict[str, Any]],
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Initializes the workflow entry and sends the first task briefing to all agents.
@@ -389,7 +422,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         )
 
         # Save initial plan using update_workflow_state for consistency
-        await self.update_workflow_state(instance_id=instance_id, plan=plan)
+        await self.update_workflow_state(
+            instance_id=instance_id, plan=plan, otel_context=otel_context
+        )
 
         # Return formatted prompt
         return formatted_message
@@ -428,7 +463,12 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     @task(description=NEXT_STEP_PROMPT, include_chat_history=True)
     @async_span_decorator("generate_next_step")
     async def generate_next_step(
-        self, task: str, agents: str, plan: str, next_step_schema: str
+        self,
+        task: str,
+        agents: str,
+        plan: str,
+        next_step_schema: str,
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> NextStep:
         """
         Determines the next agent to respond in a workflow.
@@ -452,6 +492,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         plan: List[Dict[str, Any]],
         step: int,
         substep: Optional[float],
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> bool:
         """
         Validates if the next step exists in the current execution plan.
@@ -523,7 +564,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         updated_plan = update_step_statuses(plan)
 
         # Save updated plan state
-        await self.update_workflow_state(instance_id=instance_id, plan=updated_plan)
+        await self.update_workflow_state(
+            instance_id=instance_id, plan=updated_plan, otel_context=otel_context
+        )
 
         # Send message to agent
         await self.send_message_to_agent(
@@ -535,6 +578,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         return updated_plan
 
     @task
+    @async_span_decorator("update_task_history")
     async def update_task_history(
         self,
         instance_id: str,
@@ -542,6 +586,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         step: int,
         substep: Optional[float],
         results: Dict[str, Any],
+        otel_context: Optional[Dict[str, str]] = None,
     ):
         """
         Updates the task history for a workflow instance by recording the results of an agent's execution.
@@ -562,7 +607,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         )
 
         # Store the agent's response in the message history
-        await self.update_workflow_state(instance_id=instance_id, message=results)
+        await self.update_workflow_state(
+            instance_id=instance_id, message=results, otel_context=otel_context
+        )
 
         # Retrieve Workflow state
         workflow_entry = self.state["instances"].get(instance_id)
@@ -579,7 +626,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Persist state
         await self.update_workflow_state(
-            instance_id=instance_id, plan=workflow_entry["plan"]
+            instance_id=instance_id,
+            plan=workflow_entry["plan"],
+            otel_context=otel_context,
         )
 
     @task(description=PROGRESS_CHECK_PROMPT, include_chat_history=True)
@@ -616,6 +665,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         plan: List[Dict[str, Any]],
         status_updates: Optional[List[Dict[str, Any]]] = None,
         plan_updates: Optional[List[Dict[str, Any]]] = None,
+        otel_context: Optional[Dict[str, str]] = None,
     ):
         """
         Updates the execution plan based on status changes and/or plan restructures.
@@ -659,7 +709,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         plan = update_step_statuses(plan)
 
         # Save to state and update workflow
-        await self.update_workflow_state(instance_id=instance_id, plan=plan)
+        await self.update_workflow_state(
+            instance_id=instance_id, plan=plan, otel_context=otel_context
+        )
 
         logger.info(f"Plan successfully updated for instance {instance_id}")
 
@@ -674,6 +726,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         agent: str,
         result: str,
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Generates a structured summary of task execution based on conversation history, execution results, and the task plan.
@@ -702,6 +755,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         verdict: str,
         summary: str,
+        otel_context: Optional[Dict[str, str]] = None,
     ):
         """
         Finalizes the workflow by updating the plan, marking the provided step/substep as completed if applicable,
@@ -753,11 +807,16 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         # Apply updates in one call
         if status_updates:
             await self.update_plan(
-                instance_id=instance_id, plan=plan, status_updates=status_updates
+                instance_id=instance_id,
+                plan=plan,
+                status_updates=status_updates,
+                otel_context=otel_context,
             )
 
         # Store the final summary and verdict in workflow state
-        await self.update_workflow_state(instance_id=instance_id, final_output=summary)
+        await self.update_workflow_state(
+            instance_id=instance_id, final_output=summary, otel_context=otel_context
+        )
 
     @async_span_decorator("update_workflow_state")
     async def update_workflow_state(
@@ -832,6 +891,8 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             logger.info(
                 f"{self.name} processing agent response for workflow instance '{workflow_instance_id}'."
             )
+            # Set the W3C headers for OpenTelemetry tracing context propagation through DaprWorkflowClient
+            message.otel_context = otel_context
 
             # Raise a workflow event with the Agent's Task Response
             self.raise_workflow_event(

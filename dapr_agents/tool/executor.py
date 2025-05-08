@@ -108,7 +108,13 @@ class AgentToolExecutor(BaseModel):
         )
 
     @async_span_decorator("run_tool")
-    async def run_tool(self, tool_name: str, *args, **kwargs) -> Any:
+    async def run_tool(
+        self,
+        tool_name: str,
+        otel_context: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> Any:
         """
         Executes a tool by name, automatically handling both sync and async tools.
 
@@ -135,7 +141,7 @@ class AgentToolExecutor(BaseModel):
         try:
             logger.info(f"Running tool (auto): {tool_name}")
             if tool._is_async:
-                return await tool.arun(*args, **kwargs)
+                return await tool.arun(otel_context=otel_context, *args, **kwargs)
             return tool(*args, **kwargs)
         except Exception as e:
             logger.error(f"Unexpected error in '{tool_name}': {e}")

@@ -120,7 +120,11 @@ class AgentBase(BaseModel, ABC):
 
     @abstractmethod
     @span_decorator("agent_run")
-    def run(self, input_data: Union[str, Dict[str, Any]]) -> Any:
+    def run(
+        self,
+        input_data: Union[str, Dict[str, Any]],
+        otel_context: Optional[Dict[str, str]] = None,
+    ) -> Any:
         """
         Executes the agent's main logic based on provided inputs.
 
@@ -297,7 +301,9 @@ class AgentBase(BaseModel, ABC):
 
     @span_decorator("agent_construct_msg")
     def construct_messages(
-        self, input_data: Union[str, Dict[str, Any]]
+        self,
+        input_data: Union[str, Dict[str, Any]],
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Constructs and formats initial messages based on input type, pre-filling chat history as needed.

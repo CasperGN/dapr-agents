@@ -88,6 +88,7 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
         self,
         input: Union[str, List[Union[str, List[int]]]],
         model: Optional[str] = None,
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> CreateEmbeddingResponse:
         """
         Generate embeddings for the given input text(s).
@@ -115,6 +116,7 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
         model = model or self.model
         span.set_attribute("gen_ai.request.model", model)
 
+        # TODO
         response = self.client.embeddings.create(
             model=model,
             input=input,

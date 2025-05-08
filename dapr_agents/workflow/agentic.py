@@ -290,7 +290,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         self._is_running = False
         logger.info("Agent Workflow Service stopped successfully.")
 
-    @span_decorator("get_chat_history")
     def get_chat_history(self, task: Optional[str] = None) -> List[dict]:
         """
         Retrieves and validates the agent's chat history.
@@ -307,6 +306,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             List[dict]: A list of chat history messages, each represented as a dictionary.
                 If a message is a Pydantic model, it is serialized using `model_dump()`.
         """
+        # TODO
         if isinstance(self.memory, ConversationVectorMemory) and task:
             query_embeddings = self.memory.vector_store.embedding_function.embed(task)
             chat_history = self.memory.get_messages(query_embeddings=query_embeddings)
@@ -517,10 +517,12 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.error(f"Failed to save workflow state to disk: {e}")
             raise RuntimeError(f"Error saving workflow state to disk: {e}")
 
+    @span_decorator("save_state")
     def save_state(
         self,
         state: Optional[Union[dict, BaseModel, str]] = None,
         force_reload: bool = False,
+        otel_context: Optional[Dict[str, str]] = None,
     ) -> None:
         """
         Saves the current workflow state to the Dapr state store and optionally as a local backup.
@@ -591,12 +593,10 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.error(f"Failed to save state for key '{self.state_key}': {e}")
             raise
 
-    @span_decorator("get_agents_metadata")
     def get_agents_metadata(
         self,
         exclude_self: bool = True,
         exclude_orchestrator: bool = False,
-        otel_context: Optional[Dict[str, str]] = None,
     ) -> dict:
         """
         Retrieves metadata for all registered agents while ensuring orchestrators do not interact with other orchestrators.
@@ -726,16 +726,10 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             agent_metadata = agents_metadata[name]
             logger.info(f"{self.name} sending message to agent '{name}'.")
 
-            otel_context = {}
-            if self._tracer:
-                otel_context = extract_otel_context()
-
-                # Add attributes to current span
-                span = trace.get_current_span()
-                if span and span.is_recording():
-                    span.set_attribute("message.receiver", agent_metadata["topic_name"])
-                    span.set_attribute("message.sender", self.name)
-                    span.set_attribute("message.content", str(message))
+            span = trace.get_current_span()
+            span.set_attribute("message.receiver", agent_metadata["topic_name"])
+            span.set_attribute("message.sender", self.name)
+            span.set_attribute("message.content", str(message))
 
             await self.publish_event_message(
                 topic_name=agent_metadata["topic_name"],
@@ -794,7 +788,11 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             raise e
 
     @async_span_decorator("run_workflow_from_request")
-    async def run_workflow_from_request(self, request: Request) -> JSONResponse:
+    async def run_workflow_from_request(
+        self,
+        request: Request,
+        otel_context: Optional[Dict[str, str]] = None,
+    ) -> JSONResponse:
         """
         Run a workflow instance triggered by an incoming HTTP POST request.
         Supports dynamic workflow name via query param (?name=...).
@@ -847,7 +845,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 span.set_attribute("workflow.input", str(input_data))
 
             logger.info(f"Starting workflow '{workflow_name}' with input: {input_data}")
-            instance_id = self.run_workflow(workflow=workflow_name, input=input_data)
+            instance_id = self.run_workflow(
+                workflow=workflow_name, input=input_data, otel_context=otel_context
+            )
 
             if span.is_recording():
                 span.set_attribute("workflow.instance_id", instance_id)

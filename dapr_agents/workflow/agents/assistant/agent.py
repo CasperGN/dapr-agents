@@ -97,7 +97,12 @@ class AssistantAgent(AgentWorkflowBase):
     @message_router
     @workflow(name="ToolCallingWorkflow")
     @span_decorator("exec_tool_calling_wf")
-    def tool_calling_workflow(self, ctx: DaprWorkflowContext, message: TriggerAction):
+    def tool_calling_workflow(
+        self,
+        ctx: DaprWorkflowContext,
+        message: TriggerAction,
+        otel_context: Optional[Dict[str, str]] = None,
+    ):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).
         """
@@ -165,18 +170,18 @@ class AssistantAgent(AgentWorkflowBase):
             input={
                 "instance_id": instance_id,
                 "task": task,
-                "otel_context": extract_otel_context(),
+                "otel_context": otel_context,
             },
         )
         response_message = yield ctx.call_activity(
             self.get_response_message,
-            input={"response": response, "otel_context": extract_otel_context()},
+            input={"response": response, "otel_context": otel_context},
         )
 
         # Step 4: Extract Finish Reason
         finish_reason = yield ctx.call_activity(
             self.get_finish_reason,
-            input={"response": response, "otel_context": extract_otel_context()},
+            input={"response": response, "otel_context": otel_context},
         )
 
         # Step 5: Choose execution path based on LLM response
@@ -189,7 +194,7 @@ class AssistantAgent(AgentWorkflowBase):
             # Retrieve the list of tool calls extracted from the LLM response
             tool_calls = yield ctx.call_activity(
                 self.get_tool_calls,
-                input={"response": response, "otel_context": extract_otel_context()},
+                input={"response": response, "otel_context": otel_context},
             )
             span.add_event(
                 "tool_calls_detected", {"count": len(tool_calls) if tool_calls else 0}
@@ -205,7 +210,7 @@ class AssistantAgent(AgentWorkflowBase):
                     input={
                         "instance_id": instance_id,
                         "tool_call": tool_call,
-                        "otel_context": extract_otel_context(),
+                        "otel_context": otel_context,
                     },
                 )
                 for tool_call in tool_calls
@@ -349,10 +354,7 @@ class AssistantAgent(AgentWorkflowBase):
         return response.model_dump()
 
     @task
-    @span_decorator("get_response_message")
-    def get_response_message(
-        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+    def get_response_message(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extracts the response message from the first choice in the LLM response.
 
@@ -532,7 +534,9 @@ class AssistantAgent(AgentWorkflowBase):
         response_message = BroadcastMessage(**message)
 
         # Broadcast message to all agents
-        await self.broadcast_message(message=response_message, otel_context=otel_context)
+        await self.broadcast_message(
+            message=response_message, otel_context=otel_context
+        )
 
     @task
     @async_span_decorator("respond_to_agent")

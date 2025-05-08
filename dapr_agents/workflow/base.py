@@ -245,7 +245,6 @@ class WorkflowApp(BaseModel):
         else:
             logger.debug("Workflow runtime already stopped; skipping.")
 
-    @span_decorator("register_agent")
     def register_agent(
         self, store_name: str, store_key: str, agent_name: str, agent_metadata: dict
     ) -> None:
@@ -417,6 +416,7 @@ class WorkflowApp(BaseModel):
             workflow_func = self.resolve_workflow(workflow)
 
             # Schedule workflow execution
+            # TODO: Can we add the otel_context to the new workflow?
             instance_id = self.wf_client.schedule_new_workflow(
                 workflow=workflow_func, input=input, instance_id=instance_id
             )
@@ -680,7 +680,11 @@ class WorkflowApp(BaseModel):
             return None
 
     def raise_workflow_event(
-        self, instance_id: str, event_name: str, *, data: Any | None = None
+        self,
+        instance_id: str,
+        event_name: str,
+        *,
+        data: Any | None = None,
     ) -> None:
         """
         Raises an event for a running workflow instance.

@@ -224,6 +224,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             logger.info("Invoking ChatCompletion API.")
             logger.debug(f"ChatCompletion API Parameters: {params}")
 
+            # TODO
             response: ChatCompletionMessage = self.client.chat.completions.create(
                 **params, timeout=self.timeout
             )

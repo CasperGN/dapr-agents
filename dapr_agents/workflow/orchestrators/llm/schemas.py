@@ -1,6 +1,6 @@
 from functools import cached_property
 import json
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 from pydantic import BaseModel, Field
 
 from dapr_agents.workflow.orchestrators.llm.state import PlanStep
@@ -21,6 +21,9 @@ class AgentTaskResponse(BaseMessage):
 
     workflow_instance_id: Optional[str] = Field(
         default=None, description="Dapr workflow instance id from source if available"
+    )
+    otel_context: Optional[Dict[str, str]] = Field(
+        default=None, description="W3C headers for trace context propagation"
     )
 
 
