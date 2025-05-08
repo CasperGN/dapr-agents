@@ -104,9 +104,6 @@ class AssistantAgent(AgentWorkflowBase):
 
         span = trace.get_current_span()
 
-        # Extract context for propagation
-        current_context = extract_otel_context()
-
         # Step 0: Retrieve task and iteration input
         task = message.get("task")
         iteration = message.get("iteration", 0)
@@ -168,18 +165,18 @@ class AssistantAgent(AgentWorkflowBase):
             input={
                 "instance_id": instance_id,
                 "task": task,
-                "otel_context": current_context,
+                "otel_context": extract_otel_context(),
             },
         )
         response_message = yield ctx.call_activity(
             self.get_response_message,
-            input={"response": response, "otel_context": current_context},
+            input={"response": response, "otel_context": extract_otel_context()},
         )
 
         # Step 4: Extract Finish Reason
         finish_reason = yield ctx.call_activity(
             self.get_finish_reason,
-            input={"response": response, "otel_context": current_context},
+            input={"response": response, "otel_context": extract_otel_context()},
         )
 
         # Step 5: Choose execution path based on LLM response
@@ -192,7 +189,7 @@ class AssistantAgent(AgentWorkflowBase):
             # Retrieve the list of tool calls extracted from the LLM response
             tool_calls = yield ctx.call_activity(
                 self.get_tool_calls,
-                input={"response": response, "otel_context": current_context},
+                input={"response": response, "otel_context": extract_otel_context()},
             )
             span.add_event(
                 "tool_calls_detected", {"count": len(tool_calls) if tool_calls else 0}
@@ -208,7 +205,7 @@ class AssistantAgent(AgentWorkflowBase):
                     input={
                         "instance_id": instance_id,
                         "tool_call": tool_call,
-                        "otel_context": current_context,
+                        "otel_context": extract_otel_context(),
                     },
                 )
                 for tool_call in tool_calls
@@ -218,7 +215,7 @@ class AssistantAgent(AgentWorkflowBase):
                     "parallel_tool_execution"
                 ) as parallel_span:
                     parallel_span.set_attribute("tool_calls.count", len(tool_calls))
-                    yield self.when_all(parallel_tasks, current_context)
+                    yield self.when_all(parallel_tasks, extract_otel_context())
             else:
                 # Fall back if no tracer is available
                 span.add_event(
@@ -259,7 +256,10 @@ class AssistantAgent(AgentWorkflowBase):
             # Step 8: Broadcasting Response to all agents if available
             yield ctx.call_activity(
                 self.broadcast_message_to_agents,
-                input={"message": response_message, "otel_context": current_context},
+                input={
+                    "message": response_message,
+                    "otel_context": extract_otel_context(),
+                },
             )
 
             # Step 9: Respond to source agent if available
@@ -269,7 +269,7 @@ class AssistantAgent(AgentWorkflowBase):
                     "response": response_message,
                     "target_agent": source,
                     "target_instance_id": source_workflow_instance_id,
-                    "otel_context": current_context,
+                    "otel_context": extract_otel_context(),
                 },
             )
 
@@ -279,7 +279,7 @@ class AssistantAgent(AgentWorkflowBase):
                 input={
                     "instance_id": instance_id,
                     "message": response_message,
-                    "otel_context": current_context,
+                    "otel_context": extract_otel_context(),
                 },
             )
 
