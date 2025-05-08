@@ -172,9 +172,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         Returns:
             Union[Iterator[Dict[str, Any]], Dict[str, Any]]: The chat completion response(s).
         """
-        logger.info(f"LLM generate called with tracer: {self._tracer is not None}")
-        logger.info(f"Context available: {otel_context is not None}")
-
         if structured_mode not in self.SUPPORTED_STRUCTURED_MODES:
             raise ValueError(
                 f"Invalid structured_mode '{structured_mode}'. Must be one of {self.SUPPORTED_STRUCTURED_MODES}."
@@ -214,6 +211,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             response_format=response_format,
             structured_mode=structured_mode,
         )
+
         span = trace.get_current_span()
         span.set_attribute("gen_ai.operation.name", "chat")
         span.set_attribute("gen_ai.system", "openai")
@@ -224,10 +222,37 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             logger.info("Invoking ChatCompletion API.")
             logger.debug(f"ChatCompletion API Parameters: {params}")
 
-            # TODO
-            response: ChatCompletionMessage = self.client.chat.completions.create(
-                **params, timeout=self.timeout
-            )
+            logger.info(f"Span context: {otel_context}")
+            logger.info(f"Span: {span}")
+
+            if self._tracer:
+                with self._tracer.start_as_current_span(
+                    "openai.chat.completions",
+                    attributes={
+                        "gen_ai.request.model": params["model"],
+                        "gen_ai.request.message_count": len(params["messages"]),
+                    },
+                ) as api_span:
+                    response: ChatCompletionMessage = (
+                        self.client.chat.completions.create(
+                            **params, timeout=self.timeout
+                        )
+                    )
+
+                    if hasattr(response, "usage") and response.usage:
+                        api_span.set_attribute(
+                            "openai.prompt_tokens", response.usage.prompt_tokens
+                        )
+                        api_span.set_attribute(
+                            "openai.completion_tokens", response.usage.completion_tokens
+                        )
+                        api_span.set_attribute(
+                            "openai.total_tokens", response.usage.total_tokens
+                        )
+            else:
+                response: ChatCompletionMessage = self.client.chat.completions.create(
+                    **params, timeout=self.timeout
+                )
 
             if hasattr(response, "usage") and response.usage:
                 span.set_attribute("openai.prompt_tokens", response.usage.prompt_tokens)
