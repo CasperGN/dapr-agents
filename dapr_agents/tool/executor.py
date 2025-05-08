@@ -11,7 +11,7 @@ from dapr_agents.agent.telemetry import (
     async_span_decorator,
 )
 
-from opentelemetry import trace
+from opentelemetry import trace, context
 from opentelemetry.trace import Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
@@ -141,6 +141,14 @@ class AgentToolExecutor(BaseModel):
             logger.error(f"Unexpected error in '{tool_name}': {e}")
             span.set_status(Status(StatusCode.ERROR))
             span.record_exception(e)
+
+            # Clean up context before propagating error
+            try:
+                context.attach(context.Context())
+            except Exception as cleanup_error:
+                logger.error(
+                    f"Context cleanup during error handling failed: {cleanup_error}"
+                )
 
             if isinstance(e, ToolError):
                 raise AgentToolExecutorError(str(e)) from e
