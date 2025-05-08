@@ -364,7 +364,6 @@ class AssistantAgent(AgentWorkflowBase):
         Returns:
             Dict[str, Any]: The extracted response message with the agent's name added.
         """
-        # TODO: Finish me!
         choices = response.get("choices", [])
         response_message = choices[0].get("message", {})
 

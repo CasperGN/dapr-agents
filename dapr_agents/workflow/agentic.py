@@ -715,7 +715,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             **kwargs: Additional metadata fields to include in the message.
         """
         try:
-            agents_metadata = self.get_agents_metadata(otel_context=otel_context)
+            agents_metadata = self.get_agents_metadata()
 
             if name not in agents_metadata:
                 logger.warning(
