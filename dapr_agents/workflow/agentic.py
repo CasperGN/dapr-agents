@@ -835,8 +835,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             except Exception:
                 input_data = await request.json()
 
-            logger.info(f"Received headers: {request.headers}")
-
             # TODO: If no headers are sent we need to construct the span manually
             otel_context = restore_otel_context(request.headers)
             logger.info(f"Restored OpenTelemetry context: {otel_context}")
