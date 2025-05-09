@@ -37,6 +37,7 @@ from opentelemetry.sdk.trace import Tracer
 from dapr_agents.agent.telemetry import (
     async_span_decorator,
     span_decorator,
+    restore_otel_context,
 )
 from opentelemetry import trace
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
@@ -802,27 +803,18 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             JSONResponse: A 202 Accepted response with the workflow instance ID if successful,
                         or a 400/500 error response if the request fails validation or execution.
         """
-        # span = trace.get_current_span()
 
         try:
             # Extract workflow name from query parameters or use default
             workflow_name = request.query_params.get("name") or self._workflow_name
             if not workflow_name:
-                # if span.is_recording():
-                #    span.set_attribute("error", "No workflow name specified")
-
                 return JSONResponse(
                     content={"error": "No workflow name specified."},
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
-            # if span.is_recording():
-            #    span.set_attribute("workflow.name", workflow_name)
 
             # Validate workflow name against registered workflows
             if workflow_name not in self.workflows:
-                # if span.is_recording():
-                #    span.set_attribute("error", f"Unknown workflow '{workflow_name}'")
-
                 return JSONResponse(
                     content={
                         "error": f"Unknown workflow '{workflow_name}'. Available: {list(self.workflows.keys())}"
@@ -839,29 +831,39 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             except Exception:
                 input_data = await request.json()
 
-            logger.info(f"Received input data: {input_data}")
+            logger.info(f"Received headers: {request.headers}")
 
-            # if span.is_recording():
-            #    span.set_attribute("workflow.input", str(input_data))
+            # TODO: If no headers are sent we need to construct the span manually
+            otel_context = {
+                "traceparent": request.headers.get("traceparent", ""),
+                "tracestate": request.headers.get("tracestate", ""),
+            }
+            restored_ctx = restore_otel_context(otel_context=otel_context)
 
-            logger.info(f"Starting workflow '{workflow_name}' with input: {input_data}")
-            instance_id = self.run_workflow(
-                workflow=workflow_name,
-                input=input_data,  # , otel_context=otel_context
-            )
+            with self._tracer.start_as_current_span(
+                "start_workflow", context=restored_ctx
+            ) as span:
+                span.set_attribute("workflow.name", workflow_name)
+                span.set_attribute("workflow.input", str(input_data))
 
-            # if span.is_recording():
-            #    span.set_attribute("workflow.instance_id", instance_id)
+                logger.info(
+                    f"Starting workflow '{workflow_name}' with input: {input_data}"
+                )
+                instance_id = self.run_workflow(
+                    workflow=workflow_name, input=input_data, otel_context=otel_context
+                )
 
-            asyncio.create_task(self.monitor_workflow_completion(instance_id))
+                span.set_attribute("workflow.instance_id", instance_id)
 
-            return JSONResponse(
-                content={
-                    "message": "Workflow initiated successfully.",
-                    "workflow_instance_id": instance_id,
-                },
-                status_code=status.HTTP_202_ACCEPTED,
-            )
+                asyncio.create_task(self.monitor_workflow_completion(instance_id))
+
+                return JSONResponse(
+                    content={
+                        "message": "Workflow initiated successfully.",
+                        "workflow_instance_id": instance_id,
+                    },
+                    status_code=status.HTTP_202_ACCEPTED,
+                )
 
         except Exception as e:
             logger.error(f"Error starting workflow: {str(e)}", exc_info=True)
