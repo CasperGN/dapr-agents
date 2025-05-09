@@ -186,7 +186,7 @@ def async_span_decorator(name="span"):
             if not tracer:
                 return func(self, *args, **kwargs)
 
-            span = tracer.start_span(name, context=otel_context)
+            span = tracer.start_as_current_span(name, context=otel_context)
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
 
@@ -226,7 +226,7 @@ def span_decorator(name):
             if not tracer:
                 return func(self, *args, **kwargs)
 
-            span = tracer.start_span(name, context=otel_context)
+            span = tracer.start_as_current_span(name, context=otel_context)
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
 
