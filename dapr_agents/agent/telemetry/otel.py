@@ -233,6 +233,7 @@ def span_decorator(name):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
+            logger.info(f"On calling otel_context: {otel_context}")
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -241,12 +242,15 @@ def span_decorator(name):
             ctx = None
             if otel_context:
                 try:
+                    logger.info(f"Before restore otel_context: {otel_context}")
                     ctx = restore_otel_context(otel_context)
+                    logger.info(f"Restored context: {ctx}")
                 except Exception as e:
                     logger.warning(f"Failed to restore context: {e}")
             else:
                 # If no context is provided, extract the current context
                 otel_context = extract_otel_context()
+                logger.info(f"Extracted otel_context: {otel_context}")
 
             span = None
             try:
@@ -262,6 +266,7 @@ def span_decorator(name):
                         "trace_state": span.get_span_context().trace_state,
                     }
                     kwargs["otel_context"] = otel_context
+                    logger.info(f"Inside otel_context: {otel_context}")
 
                     try:
                         result = func(self, *args, **kwargs)
@@ -293,37 +298,7 @@ def restore_otel_context(otel_context: dict[str, str]) -> Optional[Context]:
     Returns:
         Context object that can be used with tracer.start_as_current_span()
     """
-    # Create a completely new context - this avoids token issues
-    ctx = Context()
-
-    if not otel_context or "traceparent" not in otel_context:
-        return ctx
-
-    try:
-        traceparent = otel_context.get("traceparent", "")
-        parts = traceparent.split("-")
-        if len(parts) >= 4:
-            trace_id = int(parts[1], 16)
-            span_id = int(parts[2], 16)
-            flags = int(parts[3], 16)
-
-            # Create span context directly
-            from opentelemetry.trace.span import TraceFlags, SpanContext
-
-            span_context = SpanContext(
-                trace_id=trace_id,
-                span_id=span_id,
-                is_remote=True,
-                trace_flags=TraceFlags(flags),
-            )
-
-            # Set in fresh context
-            span = trace.NonRecordingSpan(span_context)
-            ctx = trace.set_span_in_context(span, ctx)
-    except Exception as e:
-        logger.warning(f"Error creating safe context: {e}")
-
-    return ctx
+    return _propagator.extract(carrier=otel_context)
 
 
 def extract_otel_context() -> dict[str, str]:
@@ -331,30 +306,7 @@ def extract_otel_context() -> dict[str, str]:
     Extract current OpenTelemetry context for cross-boundary propagation.
     Returns a format that can be properly serialized by Dapr workflows.
     """
-    carrier: dict[str, str] = {}
-    _propagator.inject(carrier)
+    otel_context: dict[str, str] = {}
+    _propagator.inject(carrier=otel_context, context=context.get_current())
 
-    span = trace.get_current_span()
-    ctx = span.get_span_context()
-    logger.info(f"### ctx: {ctx}")
-    logger.info(f"### span: {span}")
-
-    # Always extract these values regardless of condition
-    trace_id = format(ctx.trace_id, "032x")
-    span_id = format(ctx.span_id, "016x")
-    flags = "01" if ctx.trace_flags.sampled else "00"
-
-    # If the propagator didn't inject a traceparent, create it manually
-    if "traceparent" not in carrier and span and span.is_recording():
-        carrier["traceparent"] = f"00-{trace_id}-{span_id}-{flags}"
-
-    # Ensure tracestate exists in the carrier (default to empty string if not present)
-    if "tracestate" not in carrier:
-        carrier["tracestate"] = ""
-
-    # Add the extra fields directly to the carrier
-    carrier["trace_id"] = trace_id
-    carrier["span_id"] = span_id
-    carrier["trace_flags"] = flags
-
-    return carrier
+    return otel_context
