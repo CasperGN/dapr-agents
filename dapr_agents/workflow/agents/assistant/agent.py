@@ -38,7 +38,7 @@ from dapr_agents.agent.telemetry import (
 )
 
 from opentelemetry import trace
-from opentelemetry.context import get_current
+from opentelemetry.context import Context
 from opentelemetry.trace import Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ class AssistantAgent(AgentWorkflowBase):
         self,
         ctx: DaprWorkflowContext,
         message: TriggerAction,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).

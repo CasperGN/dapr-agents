@@ -43,6 +43,7 @@ from dapr_agents.agent.telemetry import (
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
+from opentelemetry.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self,
         ctx: DaprWorkflowContext,
         message: TriggerAction,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ):
         """
         Executes an LLM-driven agentic workflow where the next agent is dynamically selected
@@ -382,7 +383,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         task: str,
         agents: str,
         plan_schema: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> List[PlanStep]:
         """
         Generates a structured execution plan for the given task.
@@ -405,7 +406,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         task: str,
         agents: str,
         plan: List[Dict[str, Any]],
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> str:
         """
         Initializes the workflow entry and sends the first task briefing to all agents.
@@ -435,7 +436,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self,
         instance_id: str,
         task: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ):
         """
         Saves message to workflow state and broadcasts it to all registered agents.
@@ -471,7 +472,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         agents: str,
         plan: str,
         next_step_schema: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> NextStep:
         """
         Determines the next agent to respond in a workflow.
@@ -495,7 +496,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         plan: List[Dict[str, Any]],
         step: int,
         substep: Optional[float],
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> bool:
         """
         Validates if the next step exists in the current execution plan.
@@ -525,7 +526,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         name: str,
         step: int,
         substep: Optional[float],
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> List[dict[str, Any]]:
         """
         Updates step status and triggers the specified agent to perform its activity.
@@ -589,7 +590,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         step: int,
         substep: Optional[float],
         results: Dict[str, Any],
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ):
         """
         Updates the task history for a workflow instance by recording the results of an agent's execution.
@@ -666,7 +667,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self,
         instance_id: str,
         plan: List[Dict[str, Any]],
-        otel_context: Dict[str, str],
+        otel_context: Context,
         status_updates: Optional[List[Dict[str, Any]]] = None,
         plan_updates: Optional[List[Dict[str, Any]]] = None,
     ):
@@ -729,7 +730,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         agent: str,
         result: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> str:
         """
         Generates a structured summary of task execution based on conversation history, execution results, and the task plan.
@@ -758,7 +759,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         verdict: str,
         summary: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ):
         """
         Finalizes the workflow by updating the plan, marking the provided step/substep as completed if applicable,
@@ -825,7 +826,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     async def update_workflow_state(
         self,
         instance_id: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
         message: Optional[Dict[str, Any]] = None,
         final_output: Optional[str] = None,
         plan: Optional[List[Dict[str, Any]]] = None,
@@ -873,7 +874,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     async def process_agent_response(
         self,
         message: AgentTaskResponse,
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ):
         """
         Processes agent response messages sent directly to the agent's topic.

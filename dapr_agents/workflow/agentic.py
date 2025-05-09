@@ -40,6 +40,7 @@ from dapr_agents.agent.telemetry import (
     restore_otel_context,
 )
 from opentelemetry import trace
+from opentelemetry.context import Context
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
 
 if TYPE_CHECKING:
@@ -521,7 +522,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     @span_decorator("save_state")
     def save_state(
         self,
-        otel_context: Dict[str, str],
+        otel_context: Context,
         state: Optional[Union[dict, BaseModel, str]] = None,
         force_reload: bool = False,
     ) -> None:
@@ -655,7 +656,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     async def broadcast_message(
         self,
         message: Union[BaseModel, dict],
-        otel_context: Dict[str, str],
+        otel_context: Context,
         exclude_orchestrator: bool = False,
         **kwargs,
     ) -> None:
@@ -704,7 +705,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         self,
         name: str,
         message: Union[BaseModel, dict],
-        otel_context: Dict[str, str],
+        otel_context: Context,
         **kwargs,
     ) -> None:
         """

@@ -3,7 +3,7 @@ import inspect
 import logging
 import threading
 import functools
-from typing import Callable, Dict, Optional
+from typing import Callable
 
 from dapr.aio.clients.grpc.subscription import Subscription
 from dapr.clients.grpc._response import TopicEventResponse
@@ -13,7 +13,8 @@ from dapr_agents.workflow.messaging.parser import (
     extract_cloudevent_data,
     validate_message_model,
 )
-from dapr_agents.agent.telemetry import restore_otel_context
+
+from opentelemetry.context import Context
 from dapr_agents.workflow.messaging.utils import is_valid_routable_model
 from dapr_agents.workflow.utils import get_decorated_methods
 from opentelemetry import trace
@@ -134,7 +135,7 @@ class MessageRoutingMixin:
         @functools.wraps(method)
         async def wrapped_method(
             message: dict,
-            otel_context: Dict[str, str],
+            otel_context: Context,
         ):
             try:
                 if getattr(method, "_is_workflow", False):

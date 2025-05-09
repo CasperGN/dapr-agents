@@ -9,6 +9,7 @@ from dapr_agents.tool.utils.function_calling import to_function_call_definition
 from dapr_agents.types import ToolError
 
 from dapr_agents.agent.telemetry import async_span_decorator
+from opentelemetry.context import Context
 
 
 logger = logging.getLogger(__name__)
@@ -143,7 +144,7 @@ class AgentTool(BaseModel):
             self._log_and_raise_error(e)
 
     @async_span_decorator("arun")
-    async def arun(self, otel_context: Dict[str, str], *args, **kwargs) -> Any:
+    async def arun(self, otel_context: Context, *args, **kwargs) -> Any:
         """
         Execute the tool asynchronously (whether it's sync or async under the hood).
         """
@@ -158,7 +159,7 @@ class AgentTool(BaseModel):
         except Exception as e:
             self._log_and_raise_error(e)
 
-    def _run(self, otel_context: Dict[str, str], *args, **kwargs) -> Any:
+    def _run(self, otel_context: Context, *args, **kwargs) -> Any:
         """Fallback default run logic if no `func` is set."""
         if self.func:
             return self.func(otel_context=otel_context * args, **kwargs)

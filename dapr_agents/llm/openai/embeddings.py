@@ -12,6 +12,7 @@ from dapr_agents.agent.telemetry import (
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
+from opentelemetry.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
     def create_embedding(
         self,
         input: Union[str, List[Union[str, List[int]]]],
-        otel_context: Dict[str, str],
+        otel_context: Context,
         model: Optional[str] = None,
     ) -> CreateEmbeddingResponse:
         """

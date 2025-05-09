@@ -12,6 +12,7 @@ from dapr_agents.agent.telemetry import (
 )
 
 from opentelemetry import trace, context
+from opentelemetry.context import Context
 from opentelemetry.trace import Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
@@ -111,7 +112,7 @@ class AgentToolExecutor(BaseModel):
     async def run_tool(
         self,
         tool_name: str,
-        otel_context: Dict[str, str],
+        otel_context: Context,
         *args,
         **kwargs,
     ) -> Any:

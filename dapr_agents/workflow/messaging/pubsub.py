@@ -4,6 +4,7 @@ from dataclasses import is_dataclass, asdict
 from typing import Optional, Any, Dict, Union
 from pydantic import BaseModel, Field
 from dapr.aio.clients import DaprClient
+from opentelemetry.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class DaprPubSub(BaseModel):
         pubsub_name: str,
         source: str,
         message: Union[BaseModel, dict, Any],
-        otel_context: Dict[str, str],
+        otel_context: Context,
         message_type: Optional[str] = None,
         **kwargs,
     ) -> None:

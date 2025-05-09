@@ -178,47 +178,29 @@ def async_span_decorator(name="span"):
         async def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
 
+            if not otel_context:
+                otel_context = context.get_current()
+                logger.info(f"Setting otel_context: {otel_context}")
+                kwargs["otel_context"] = otel_context
+
             tracer = getattr(self, "_tracer", None)
             if not tracer:
-                return await func(self, *args, **kwargs)
+                return func(self, *args, **kwargs)
 
-            ctx = None
-            if otel_context:
+            span = tracer.start_span(name, context=otel_context)
+            with trace.use_span(span, end_on_exit=False):
+                span.set_attribute("function.name", func.__name__)
+
+                logger.info(f"Span: {span}")
+                logger.info(f"otel_context: {otel_context}")
+
                 try:
-                    ctx = restore_otel_context(otel_context)
+                    result = await func(self, *args, **kwargs)
+                    return result
                 except Exception as e:
-                    logger.warning(f"Failed to restore context: {e}")
-            else:
-                # If no context is provided, extract the current context
-                otel_context = extract_otel_context()
-
-            span = None
-            try:
-                span = tracer.start_span(name, context=ctx)
-                with trace.use_span(span, end_on_exit=False):
-                    span.set_attribute("function.name", func.__name__)
-
-                    otel_context = {
-                        "traceparent": span.get_span_context().trace_id,
-                        "tracestate": span.get_span_context().span_id,
-                        "is_remote": span.get_span_context().is_remote,
-                        "trace_flags": span.get_span_context().trace_flags,
-                        "trace_state": span.get_span_context().trace_state,
-                    }
-                    kwargs["otel_context"] = otel_context
-                    try:
-                        result = await func(self, *args, **kwargs)
-                        return result
-                    except Exception as e:
-                        span.set_status(Status(StatusCode.ERROR))
-                        span.record_exception(e)
-                        raise
-            finally:
-                try:
-                    if span:
-                        span.end()
-                except ValueError:
-                    pass
+                    span.set_status(Status(StatusCode.ERROR))
+                    span.record_exception(e)
+                    raise
 
         return wrapper
 
@@ -232,61 +214,37 @@ def span_decorator(name):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
-            logger.info(f"On calling otel_context: {otel_context}")
+
+            if not otel_context:
+                otel_context = context.get_current()
+                logger.info(f"Setting otel_context: {otel_context}")
+                kwargs["otel_context"] = otel_context
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
                 return func(self, *args, **kwargs)
 
-            ctx = None
-            if otel_context:
+            span = tracer.start_span(name, context=otel_context)
+            with trace.use_span(span, end_on_exit=False):
+                span.set_attribute("function.name", func.__name__)
+
+                logger.info(f"Span: {span}")
+                logger.info(f"otel_context: {otel_context}")
+
                 try:
-                    logger.info(f"Before restore otel_context: {otel_context}")
-                    ctx = restore_otel_context(otel_context)
-                    logger.info(f"Restored context: {ctx}")
+                    result = func(self, *args, **kwargs)
+                    return result
                 except Exception as e:
-                    logger.warning(f"Failed to restore context: {e}")
-            else:
-                # If no context is provided, extract the current context
-                otel_context = extract_otel_context()
-                logger.info(f"Extracted otel_context: {otel_context}")
-
-            span = None
-            try:
-                span = tracer.start_span(name, context=ctx)
-                with trace.use_span(span, end_on_exit=False):
-                    span.set_attribute("function.name", func.__name__)
-
-                    otel_context = {
-                        "traceparent": span.get_span_context().trace_id,
-                        "tracestate": span.get_span_context().span_id,
-                        "is_remote": span.get_span_context().is_remote,
-                        "trace_flags": span.get_span_context().trace_flags,
-                        "trace_state": span.get_span_context().trace_state,
-                    }
-                    kwargs["otel_context"] = otel_context
-                    logger.info(f"Inside otel_context: {otel_context}")
-
-                    try:
-                        result = func(self, *args, **kwargs)
-                        return result
-                    except Exception as e:
-                        span.set_status(Status(StatusCode.ERROR))
-                        span.record_exception(e)
-                        raise
-            finally:
-                try:
-                    if span:
-                        span.end()
-                except ValueError:
-                    pass
+                    span.set_status(Status(StatusCode.ERROR))
+                    span.record_exception(e)
+                    raise
 
         return wrapper
 
     return decorator
 
 
-def restore_otel_context(otel_context: dict[str, str]) -> Context:
+def restore_otel_context(otel_context: Context) -> Context:
     """
     Restore OpenTelemetry context from a previously extracted context dictionary.
     Creates a fresh context to avoid token errors across async boundaries.

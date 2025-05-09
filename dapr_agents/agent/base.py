@@ -23,6 +23,7 @@ from dapr_agents.agent.telemetry import (
 )
 
 from opentelemetry import trace
+from opentelemetry.context import Context
 from opentelemetry.trace import Tracer, set_tracer_provider
 
 logger = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ class AgentBase(BaseModel, ABC):
     def run(
         self,
         input_data: Union[str, Dict[str, Any]],
-        otel_context: Dict[str, str],
+        otel_context: Context,
     ) -> Any:
         """
         Executes the agent's main logic based on provided inputs.
