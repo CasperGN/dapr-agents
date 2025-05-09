@@ -192,17 +192,21 @@ def async_span_decorator(name="span"):
             else:
                 # If no context is provided, extract the current context
                 otel_context = extract_otel_context()
-                kwargs["otel_context"] = otel_context
-                logger.info(f"Setting default context: {otel_context}")
 
             span = None
             try:
                 span = tracer.start_span(name, context=ctx)
                 with trace.use_span(span, end_on_exit=False):
-                    ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
-                    logger.info(f"### span: {span}")
-                    logger.info(f"### context: {ctx}")
+
+                    otel_context = {
+                        "traceparent": span.get_span_context().trace_id,
+                        "tracestate": span.get_span_context().span_id,
+                        "is_remote": span.get_span_context().is_remote,
+                        "trace_flags": span.get_span_context().trace_flags,
+                        "trace_state": span.get_span_context().trace_state,
+                    }
+                    kwargs["otel_context"] = otel_context
                     try:
                         result = await func(self, *args, **kwargs)
                         return result
@@ -243,17 +247,22 @@ def span_decorator(name):
             else:
                 # If no context is provided, extract the current context
                 otel_context = extract_otel_context()
-                kwargs["otel_context"] = otel_context
-                logger.info(f"Setting default context: {otel_context}")
 
             span = None
             try:
                 span = tracer.start_span(name, context=ctx)
                 with trace.use_span(span, end_on_exit=False):
-                    ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
-                    logger.info(f"### span: {span}")
-                    logger.info(f"### context: {ctx}")
+
+                    otel_context = {
+                        "traceparent": span.get_span_context().trace_id,
+                        "tracestate": span.get_span_context().span_id,
+                        "is_remote": span.get_span_context().is_remote,
+                        "trace_flags": span.get_span_context().trace_flags,
+                        "trace_state": span.get_span_context().trace_state,
+                    }
+                    kwargs["otel_context"] = otel_context
+
                     try:
                         result = func(self, *args, **kwargs)
                         return result
