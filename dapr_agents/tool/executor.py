@@ -142,7 +142,9 @@ class AgentToolExecutor(BaseModel):
             raise AgentToolExecutorError(f"Tool '{tool_name}' not found.")
         try:
             logger.info(f"Running tool (auto): {tool_name}")
-            if isinstance(otel_context, dict): # Since we know it's a dict, we can safely ignore the type check
+            if isinstance(
+                otel_context, dict
+            ):  # Since we know it's a dict, we can safely ignore the type check
                 otel_context = restore_otel_context(otel_context)  # type: ignore
             if tool._is_async:
                 return await tool.arun(otel_context=otel_context, *args, **kwargs)
