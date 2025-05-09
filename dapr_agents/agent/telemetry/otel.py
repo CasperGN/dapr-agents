@@ -202,7 +202,7 @@ def async_span_decorator(name="span"):
                     ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
                     logger.info(f"### span: {span}")
-                    logger.info(f"### context: {context}")
+                    logger.info(f"### context: {ctx}")
                     try:
                         result = await func(self, *args, **kwargs)
                         return result
@@ -253,7 +253,7 @@ def span_decorator(name):
                     ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
                     logger.info(f"### span: {span}")
-                    logger.info(f"### context: {context}")
+                    logger.info(f"### context: {ctx}")
                     try:
                         result = func(self, *args, **kwargs)
                         return result
