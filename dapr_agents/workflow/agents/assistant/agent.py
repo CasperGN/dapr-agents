@@ -165,7 +165,7 @@ class AssistantAgent(AgentWorkflowBase):
         source_workflow_instance_id = workflow_entry["source_workflow_instance_id"]
 
         if isinstance(otel_context, Context):
-            otel_context = extract_otel_context(otel_context)
+            otel_context = extract_otel_context()
 
         # Step 3: Generate Response
         response = yield ctx.call_activity(

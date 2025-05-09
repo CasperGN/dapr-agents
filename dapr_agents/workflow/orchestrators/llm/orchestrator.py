@@ -133,7 +133,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         agents = yield ctx.call_activity(self.get_agents_metadata_as_string)
 
         if isinstance(otel_context, Context):
-            otel_context = extract_otel_context(otel_context)
+            otel_context = extract_otel_context()
 
         # Step 3: First iteration setup
         if iteration == 0:
@@ -921,7 +921,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             )
             # Set the W3C headers for OpenTelemetry tracing context propagation through DaprWorkflowClient
             if isinstance(otel_context, Context):
-                otel_context = extract_otel_context(otel_context)
+                otel_context = extract_otel_context()
 
             if isinstance(message, dict):
                 message["otel_context"] = otel_context

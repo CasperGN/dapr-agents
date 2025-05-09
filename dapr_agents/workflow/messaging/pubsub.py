@@ -138,7 +138,7 @@ class DaprPubSub(BaseModel):
         metadata.update(kwargs)
 
         if isinstance(otel_context, Context):
-            otel_context = extract_otel_context(otel_context)
+            otel_context = extract_otel_context()
 
         for key, value in otel_context.items():
             metadata[f"cloudevent.{key}"] = value

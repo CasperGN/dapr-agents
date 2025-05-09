@@ -229,7 +229,6 @@ def span_decorator(name):
                 return func(self, *args, **kwargs)
 
             span = tracer.start_span(name, context=otel_context)
-            logger.info(f"Span: {span}")
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
 
