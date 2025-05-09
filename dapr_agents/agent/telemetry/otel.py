@@ -25,6 +25,8 @@ from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExp
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+logger = logging.getLogger(__name__)
+
 
 class DaprAgentsOTel:
     """
@@ -186,11 +188,12 @@ def async_span_decorator(name="span"):
                 try:
                     ctx = restore_otel_context(otel_context)
                 except Exception as e:
-                    logging.warning(f"Failed to restore context: {e}")
+                    logger.warning(f"Failed to restore context: {e}")
             else:
                 # If no context is provided, extract the current context
                 otel_context = extract_otel_context()
                 kwargs["otel_context"] = otel_context
+                logger.info(f"Setting default context: {otel_context}")
 
             span = None
             try:
@@ -198,8 +201,8 @@ def async_span_decorator(name="span"):
                 with trace.use_span(span, end_on_exit=False):
                     ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
-                    logging.info(f"### span: {span}")
-                    logging.info(f"### context: {context}")
+                    logger.info(f"### span: {span}")
+                    logger.info(f"### context: {context}")
                     try:
                         result = await func(self, *args, **kwargs)
                         return result
@@ -236,11 +239,12 @@ def span_decorator(name):
                 try:
                     ctx = restore_otel_context(otel_context)
                 except Exception as e:
-                    logging.warning(f"Failed to restore context: {e}")
+                    logger.warning(f"Failed to restore context: {e}")
             else:
                 # If no context is provided, extract the current context
                 otel_context = extract_otel_context()
                 kwargs["otel_context"] = otel_context
+                logger.info(f"Setting default context: {otel_context}")
 
             span = None
             try:
@@ -248,8 +252,8 @@ def span_decorator(name):
                 with trace.use_span(span, end_on_exit=False):
                     ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
-                    logging.info(f"### span: {span}")
-                    logging.info(f"### context: {context}")
+                    logger.info(f"### span: {span}")
+                    logger.info(f"### context: {context}")
                     try:
                         result = func(self, *args, **kwargs)
                         return result
@@ -308,7 +312,7 @@ def restore_otel_context(otel_context: dict[str, str]) -> Optional[Context]:
             span = trace.NonRecordingSpan(span_context)
             ctx = trace.set_span_in_context(span, ctx)
     except Exception as e:
-        logging.warning(f"Error creating safe context: {e}")
+        logger.warning(f"Error creating safe context: {e}")
 
     return ctx
 
@@ -323,8 +327,8 @@ def extract_otel_context() -> dict[str, str]:
 
     span = trace.get_current_span()
     ctx = span.get_span_context()
-    logging.info(f"### ctx: {ctx}")
-    logging.info(f"### span: {span}")
+    logger.info(f"### ctx: {ctx}")
+    logger.info(f"### span: {span}")
 
     # Always extract these values regardless of condition
     trace_id = format(ctx.trace_id, "032x")
