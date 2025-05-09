@@ -225,51 +225,48 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             if isinstance(otel_context, dict):
                 otel_context = restore_otel_context(otel_context)
 
-            if self._tracer:
-                with self._tracer.start_as_current_span(
-                    name="openai.chat.completions",
-                    context=otel_context,
-                    attributes={
-                        "gen_ai.request.model": params["model"],
-                        "gen_ai.request.message_count": len(params["messages"]),
-                    },
-                ) as api_span:
-                    response: ChatCompletionMessage = (
-                        self.client.chat.completions.create(
-                            **params, timeout=self.timeout
-                        )
-                    )
-
-                    if hasattr(response, "usage") and response.usage:
-                        api_span.set_attribute(
-                            "openai.prompt_tokens", response.usage.prompt_tokens
-                        )
-                        api_span.set_attribute(
-                            "openai.completion_tokens", response.usage.completion_tokens
-                        )
-                        api_span.set_attribute(
-                            "openai.total_tokens", response.usage.total_tokens
-                        )
-            else:
+            with self._tracer.start_as_current_span(
+                name="openai.chat.completions",
+                context=otel_context,
+                attributes={
+                    "gen_ai.request.model": params["model"],
+                    "gen_ai.request.message_count": len(params["messages"]),
+                },
+            ) as api_span:
                 response: ChatCompletionMessage = self.client.chat.completions.create(
                     **params, timeout=self.timeout
                 )
 
-            if hasattr(response, "usage") and response.usage:
-                span.set_attribute("openai.prompt_tokens", response.usage.prompt_tokens)
-                span.set_attribute(
-                    "openai.completion_tokens", response.usage.completion_tokens
-                )
-                span.set_attribute("openai.total_tokens", response.usage.total_tokens)
+                if hasattr(response, "usage") and response.usage:
+                    api_span.set_attribute(
+                        "openai.prompt_tokens", response.usage.prompt_tokens
+                    )
+                    api_span.set_attribute(
+                        "openai.completion_tokens", response.usage.completion_tokens
+                    )
+                    api_span.set_attribute(
+                        "openai.total_tokens", response.usage.total_tokens
+                    )
 
-            logger.info("Chat completion retrieved successfully.")
-            return ResponseHandler.process_response(
-                response,
-                llm_provider=self.provider,
-                response_format=response_format,
-                structured_mode=structured_mode,
-                stream=params.get("stream", False),
-            )
+                if hasattr(response, "usage") and response.usage:
+                    span.set_attribute(
+                        "openai.prompt_tokens", response.usage.prompt_tokens
+                    )
+                    span.set_attribute(
+                        "openai.completion_tokens", response.usage.completion_tokens
+                    )
+                    span.set_attribute(
+                        "openai.total_tokens", response.usage.total_tokens
+                    )
+
+                logger.info("Chat completion retrieved successfully.")
+                return ResponseHandler.process_response(
+                    response,
+                    llm_provider=self.provider,
+                    response_format=response_format,
+                    structured_mode=structured_mode,
+                    stream=params.get("stream", False),
+                )
         except Exception as e:
             logger.error(f"An error occurred during the ChatCompletion API call: {e}")
             span.set_attribute("error.type", type(e).__name__)
