@@ -7,7 +7,7 @@ import functools
 import logging
 import uuid
 
-from opentelemetry import trace
+from opentelemetry import trace, context
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.metrics import set_meter_provider
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -176,11 +176,6 @@ def async_span_decorator(name="span"):
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
-            logging.info(f"### otel_context: {otel_context}")
-            if not otel_context:
-                otel_context = extract_otel_context()
-                kwargs["otel_context"] = otel_context
-                logging.info(f"### FIXED otel_context: {otel_context}")
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -197,8 +192,10 @@ def async_span_decorator(name="span"):
             try:
                 span = tracer.start_span(name, context=ctx)
                 with trace.use_span(span, end_on_exit=False):
+                    ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
-
+                    logging.info(f"### span: {span}")
+                    logging.info(f"### context: {context}")
                     try:
                         result = await func(self, *args, **kwargs)
                         return result
@@ -225,42 +222,39 @@ def span_decorator(name):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             otel_context = kwargs.get("otel_context")
-            logging.info(f"### otel_context: {otel_context}")
-            if not otel_context:
-                otel_context = extract_otel_context()
-                kwargs["otel_context"] = otel_context
-                logging.info(f"### FIXED otel_context: {otel_context}")
 
-            current_context = None
+            tracer = getattr(self, "_tracer", None)
+            if not tracer:
+                return func(self, *args, **kwargs)
 
+            ctx = None
+            if otel_context:
+                try:
+                    ctx = restore_otel_context(otel_context)
+                except Exception as e:
+                    logging.warning(f"Failed to restore context: {e}")
+
+            span = None
             try:
-                # Get the tracer if available
-                tracer = getattr(self, "_tracer", None)
-                if not tracer:
-                    # Just execute the function without tracing if no tracer
-                    return func(self, *args, **kwargs)
-
-                # Try to restore context if provided, otherwise use current context
-                if otel_context:
-                    try:
-                        current_context = restore_otel_context(otel_context)
-                    except Exception as e:
-                        logging.warning(f"Failed to restore OpenTelemetry context: {e}")
-
-                # Start a new span with appropriate context
-                with tracer.start_as_current_span(
-                    name, context=current_context
-                ) as span:
-                    # Add attributes to span based on function name
+                span = tracer.start_span(name, context=ctx)
+                with trace.use_span(span, end_on_exit=False):
+                    ctx = context.get_current()
                     span.set_attribute("function.name", func.__name__)
-
-                    # Execute the actual function
-                    return func(self, *args, **kwargs)
-
-            except Exception as e:
-                # Log error and re-raise
-                logging.error(f"Error in {func.__name__}: {e}")
-                raise
+                    logging.info(f"### span: {span}")
+                    logging.info(f"### context: {context}")
+                    try:
+                        result = func(self, *args, **kwargs)
+                        return result
+                    except Exception as e:
+                        span.set_status(Status(StatusCode.ERROR))
+                        span.record_exception(e)
+                        raise
+            finally:
+                try:
+                    if span:
+                        span.end()
+                except ValueError:
+                    pass
 
         return wrapper
 
