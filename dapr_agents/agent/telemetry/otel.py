@@ -180,7 +180,6 @@ def async_span_decorator(name):
 
             if not otel_context:
                 otel_context = context.get_current()
-                logger.info(f"Setting otel_context: {otel_context}")
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -218,7 +217,6 @@ def span_decorator(name):
 
             if not otel_context:
                 otel_context = context.get_current()
-                logger.info(f"Setting otel_context: {otel_context}")
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
