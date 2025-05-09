@@ -187,8 +187,7 @@ def async_span_decorator(name="span"):
                 logger.info("No tracer found, executing function without tracing.")
                 return func(self, *args, **kwargs)
 
-            span = tracer.start_as_current_span(name, context=otel_context)
-            logger.info(f"Span: {span}")
+            span = tracer.start_span(name, context=otel_context)
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
 
@@ -229,7 +228,7 @@ def span_decorator(name):
                 logger.info("No tracer found, executing function without tracing.")
                 return func(self, *args, **kwargs)
 
-            span = tracer.start_as_current_span(name, context=otel_context)
+            span = tracer.start_span(name, context=otel_context)
             logger.info(f"Span: {span}")
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
