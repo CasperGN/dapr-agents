@@ -187,6 +187,10 @@ def async_span_decorator(name="span"):
                     ctx = restore_otel_context(otel_context)
                 except Exception as e:
                     logging.warning(f"Failed to restore context: {e}")
+            else:
+                # If no context is provided, extract the current context
+                otel_context = extract_otel_context()
+                kwargs["otel_context"] = otel_context
 
             span = None
             try:
@@ -233,6 +237,10 @@ def span_decorator(name):
                     ctx = restore_otel_context(otel_context)
                 except Exception as e:
                     logging.warning(f"Failed to restore context: {e}")
+            else:
+                # If no context is provided, extract the current context
+                otel_context = extract_otel_context()
+                kwargs["otel_context"] = otel_context
 
             span = None
             try:
