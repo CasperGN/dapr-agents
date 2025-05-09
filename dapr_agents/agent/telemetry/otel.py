@@ -287,7 +287,7 @@ def span_decorator(name):
     return decorator
 
 
-def restore_otel_context(otel_context: dict[str, str]) -> Optional[Context]:
+def restore_otel_context(otel_context: dict[str, str]) -> Context:
     """
     Restore OpenTelemetry context from a previously extracted context dictionary.
     Creates a fresh context to avoid token errors across async boundaries.
