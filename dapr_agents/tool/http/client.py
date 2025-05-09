@@ -43,6 +43,7 @@ class DaprHTTPClient(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize the client after the model is created."""
+        # TODO: Add tracer to pass headers in the request
 
         RequestsInstrumentor().instrument()
 

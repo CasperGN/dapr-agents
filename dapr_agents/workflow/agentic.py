@@ -185,9 +185,14 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
 
         # Register built-in routes
         self.app.add_api_route("/status", lambda: {"ok": True})
-        self.app.add_api_route(
-            "/start-workflow", self.run_workflow_from_request, methods=["POST"]
-        )
+        # This will be our entrypoint for the Orchestrator
+        with self._tracer.start_as_current_span("start_workflow") as span:
+            span.set_attribute("service.name", self.name)
+            span.set_attribute("service.type", "orchestrator")
+
+            self.app.add_api_route(
+                "/start-workflow", self.run_workflow_from_request, methods=["POST"]
+            )
 
         # Allow subclass to register additional routes
         self.register_routes()
