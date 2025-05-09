@@ -192,6 +192,7 @@ def async_span_decorator(name="span"):
                 span.set_attribute("function.name", func.__name__)
 
                 logger.info(f"Span: {span}")
+                logger.info(f"context: {context.get_current()}")
                 logger.info(f"otel_context: {otel_context}")
 
                 try:
@@ -229,6 +230,7 @@ def span_decorator(name):
                 span.set_attribute("function.name", func.__name__)
 
                 logger.info(f"Span: {span}")
+                logger.info(f"context: {context.get_current()}")
                 logger.info(f"otel_context: {otel_context}")
 
                 try:
