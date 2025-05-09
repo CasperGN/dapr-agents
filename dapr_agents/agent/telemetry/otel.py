@@ -168,7 +168,7 @@ class DaprAgentsOTel:
 _propagator = TraceContextTextMapPropagator()
 
 
-def async_span_decorator(name="span"):
+def async_span_decorator(name):
     """
     Decorator for OpenTelemetry spans in async functions with proper error handling.
     """
@@ -187,16 +187,13 @@ def async_span_decorator(name="span"):
                 logger.info("No tracer found, executing function without tracing.")
                 return func(self, *args, **kwargs)
 
-            span = tracer.start_span(name, context=otel_context)
-            with trace.use_span(span, end_on_exit=False):
+            with tracer.start_as_current_span(
+                name, context=otel_context, end_on_exit=False
+            ) as span:
                 span.set_attribute("function.name", func.__name__)
 
                 # Set the context here as context is either derived from otel_context or current context
                 kwargs["otel_context"] = context.get_current()
-
-                logger.info(f"Span: {span}")
-                logger.info(f"context: {context.get_current()}")
-                logger.info(f"otel_context: {otel_context}")
 
                 try:
                     result = await func(self, *args, **kwargs)
@@ -228,16 +225,13 @@ def span_decorator(name):
                 logger.info("No tracer found, executing function without tracing.")
                 return func(self, *args, **kwargs)
 
-            span = tracer.start_span(name, context=otel_context)
-            with trace.use_span(span, end_on_exit=False):
+            with tracer.start_as_current_span(
+                name, context=otel_context, end_on_exit=False
+            ) as span:
                 span.set_attribute("function.name", func.__name__)
 
                 # Set the context here as context is either derived from otel_context or current context
                 kwargs["otel_context"] = context.get_current()
-
-                logger.info(f"Span: {span}")
-                logger.info(f"context: {context.get_current()}")
-                logger.info(f"otel_context: {otel_context}")
 
                 try:
                     result = func(self, *args, **kwargs)
