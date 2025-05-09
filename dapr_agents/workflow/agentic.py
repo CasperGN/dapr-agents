@@ -37,7 +37,6 @@ from opentelemetry.sdk.trace import Tracer
 from dapr_agents.agent.telemetry import (
     async_span_decorator,
     span_decorator,
-    extract_otel_context,
 )
 from opentelemetry import trace
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
@@ -788,11 +787,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.error(f"Failed to register metadata for agent {self.name}: {e}")
             raise e
 
-    @async_span_decorator("run_workflow_from_request")
     async def run_workflow_from_request(
         self,
         request: Request,
-        otel_context: Dict[str, str],
     ) -> JSONResponse:
         """
         Run a workflow instance triggered by an incoming HTTP POST request.
@@ -805,26 +802,26 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             JSONResponse: A 202 Accepted response with the workflow instance ID if successful,
                         or a 400/500 error response if the request fails validation or execution.
         """
-        span = trace.get_current_span()
+        # span = trace.get_current_span()
 
         try:
             # Extract workflow name from query parameters or use default
             workflow_name = request.query_params.get("name") or self._workflow_name
             if not workflow_name:
-                if span.is_recording():
-                    span.set_attribute("error", "No workflow name specified")
+                # if span.is_recording():
+                #    span.set_attribute("error", "No workflow name specified")
 
                 return JSONResponse(
                     content={"error": "No workflow name specified."},
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
-            if span.is_recording():
-                span.set_attribute("workflow.name", workflow_name)
+            # if span.is_recording():
+            #    span.set_attribute("workflow.name", workflow_name)
 
             # Validate workflow name against registered workflows
             if workflow_name not in self.workflows:
-                if span.is_recording():
-                    span.set_attribute("error", f"Unknown workflow '{workflow_name}'")
+                # if span.is_recording():
+                #    span.set_attribute("error", f"Unknown workflow '{workflow_name}'")
 
                 return JSONResponse(
                     content={
@@ -842,16 +839,19 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             except Exception:
                 input_data = await request.json()
 
-            if span.is_recording():
-                span.set_attribute("workflow.input", str(input_data))
+            logger.info(f"Received input data: {input_data}")
+
+            # if span.is_recording():
+            #    span.set_attribute("workflow.input", str(input_data))
 
             logger.info(f"Starting workflow '{workflow_name}' with input: {input_data}")
             instance_id = self.run_workflow(
-                workflow=workflow_name, input=input_data, otel_context=otel_context
+                workflow=workflow_name,
+                input=input_data,  # , otel_context=otel_context
             )
 
-            if span.is_recording():
-                span.set_attribute("workflow.instance_id", instance_id)
+            # if span.is_recording():
+            #    span.set_attribute("workflow.instance_id", instance_id)
 
             asyncio.create_task(self.monitor_workflow_completion(instance_id))
 
@@ -866,9 +866,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         except Exception as e:
             logger.error(f"Error starting workflow: {str(e)}", exc_info=True)
 
-            if span.is_recording():
-                span.set_attribute("error", str(e))
-                span.record_exception(e)
+            # if span.is_recording():
+            #    span.set_attribute("error", str(e))
+            #    span.record_exception(e)
 
             return JSONResponse(
                 content={"error": "Failed to start workflow", "details": str(e)},

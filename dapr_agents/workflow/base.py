@@ -389,7 +389,7 @@ class WorkflowApp(BaseModel):
         self,
         workflow: Union[str, Callable],
         input: Union[str, Dict[str, Any]] = None,
-        otel_context: Optional[Dict[str, Any]] = None,
+        otel_context: Optional[Dict[str, Any]] = None,  # TODO
     ) -> str:
         """
         Starts a workflow execution.

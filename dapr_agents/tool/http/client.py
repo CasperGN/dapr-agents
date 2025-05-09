@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any, Union
+from typing import Optional, Any, Union
 import logging
 import requests
 
@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field, PrivateAttr
 from dapr_agents.types import ToolError
 from urllib.parse import urlparse
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry import trace
+from dapr_agents.agent.telemetry.otel import extract_otel_context
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +35,7 @@ class DaprHTTPClient(BaseModel):
         default="", description="Optional name of the path to invoke."
     )
 
-    headers: Optional[Dict[str, str]] = Field(
+    headers: Optional[dict[str, str]] = Field(
         default={},
         description="Default headers to include in all requests.",
     )
@@ -43,7 +45,16 @@ class DaprHTTPClient(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize the client after the model is created."""
-        # TODO: Add tracer to pass headers in the request
+
+        try:
+            provider = trace.get_tracer_provider()
+
+            self._tracer = provider.get_tracer("http_tool_tracer")
+
+        except Exception as e:
+            logger.warning(
+                f"OpenTelemetry initialization failed: {e}. Continuing without telemetry."
+            )
 
         RequestsInstrumentor().instrument()
 
@@ -78,32 +89,39 @@ class DaprHTTPClient(BaseModel):
             logger.error(f"Error validating endpoint: {e}")
             raise e
 
-        logger.debug(
-            f"[HTTP] Sending POST request to '{url}' with input '{payload}' and headers '{self.headers}"
-        )
+        span = self._tracer.start_span(name="http_tool_request")
+        with trace.use_span(span, end_on_exit=False):
+            headers = self._generate_cloudevent_headers()
+            if self.headers:
+                headers.update(self.headers)
+            logger.info(f"Sending with CloudEvents headers: {headers}")
 
-        match verb.upper():
-            case "GET":
-                response = requests.get(url=str(url), headers=self.headers)
-            case "POST":
-                response = requests.post(
-                    url=str(url), headers=self.headers, json=payload
-                )
-            case _:
-                raise ValueError(
-                    f"Value for 'verb' not in expected format ['GET'|'POST']: {verb}"
-                )
-
-        logger.debug(
-            f"Request returned status code '{response.status_code}' and '{response.text}'"
-        )
-
-        if not response.ok:
-            raise ToolError(
-                f"Error occured sending the request. Received '{response.status_code}' - '{response.text}'"
+            logger.debug(
+                f"[HTTP] Sending POST request to '{url}' with input '{payload}' and headers '{headers}"
             )
 
-        return (response.status_code, response.text)
+            match verb.upper():
+                case "GET":
+                    response = requests.get(url=str(url), headers=headers)
+                case "POST":
+                    response = requests.post(
+                        url=str(url), headers=headers, json=payload
+                    )
+                case _:
+                    raise ValueError(
+                        f"Value for 'verb' not in expected format ['GET'|'POST']: {verb}"
+                    )
+
+            logger.debug(
+                f"Request returned status code '{response.status_code}' and '{response.text}'"
+            )
+
+            if not response.ok:
+                raise ToolError(
+                    f"Error occured sending the request. Received '{response.status_code}' - '{response.text}'"
+                )
+
+            return (response.status_code, response.text)
 
     def _validate_endpoint_type(
         self, endpoint: str, path: Optional[str | None]
@@ -169,3 +187,36 @@ class DaprHTTPClient(BaseModel):
             return all([parsed_url.scheme, parsed_url.netloc])
         except AttributeError:
             return False
+
+    def _generate_cloudevent_headers(self) -> dict[str, str]:
+        """
+        Generate CloudEvent headers with trace context for HTTP requests.
+
+        Args:
+            otel_context: OpenTelemetry context from upstream services
+
+        Returns:
+            Dictionary of CloudEvent headers with trace context
+        """
+        headers = {
+            "cloudevent.specversion": "1.0",
+        }
+
+        try:
+            trace_context = extract_otel_context()
+
+            # Add W3C standard headers
+            if "traceparent" in trace_context:
+                headers["traceparent"] = trace_context["traceparent"]
+            if "tracestate" in trace_context:
+                headers["tracestate"] = trace_context["tracestate"]
+
+            # Add CloudEvents extensions for trace context
+            if "traceparent" in trace_context:
+                headers["cloudevent.traceparent"] = trace_context["traceparent"]
+            if "tracestate" in trace_context:
+                headers["cloudevent.tracestate"] = trace_context["tracestate"]
+        except Exception as e:
+            logger.warning(f"Failed to extract trace context: {e}")
+
+        return headers
