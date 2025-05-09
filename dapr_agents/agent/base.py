@@ -299,11 +299,9 @@ class AgentBase(BaseModel, ABC):
             template_format=self.template_format,
         )
 
-    @span_decorator("agent_construct_msg")
     def construct_messages(
         self,
         input_data: Union[str, Dict[str, Any]],
-        otel_context: Optional[Dict[str, str]],
     ) -> List[Dict[str, Any]]:
         """
         Constructs and formats initial messages based on input type, pre-filling chat history as needed.
