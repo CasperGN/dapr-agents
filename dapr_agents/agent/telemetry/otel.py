@@ -192,7 +192,7 @@ def async_span_decorator(name="span"):
                 span.set_attribute("function.name", func.__name__)
 
                 # Set the context here as context is either derived from otel_context or current context
-                kwargs["otel_context"] = otel_context
+                kwargs["otel_context"] = context.get_current()
 
                 logger.info(f"Span: {span}")
                 logger.info(f"context: {context.get_current()}")
@@ -232,7 +232,7 @@ def span_decorator(name):
                 span.set_attribute("function.name", func.__name__)
 
                 # Set the context here as context is either derived from otel_context or current context
-                kwargs["otel_context"] = otel_context
+                kwargs["otel_context"] = context.get_current()
 
                 logger.info(f"Span: {span}")
                 logger.info(f"context: {context.get_current()}")
