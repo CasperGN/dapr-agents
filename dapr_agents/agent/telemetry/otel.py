@@ -191,6 +191,9 @@ def async_span_decorator(name="span"):
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
 
+                # Set the context here as context is either derived from otel_context or current context
+                kwargs["otel_context"] = otel_context
+
                 logger.info(f"Span: {span}")
                 logger.info(f"context: {context.get_current()}")
                 logger.info(f"otel_context: {otel_context}")
@@ -219,7 +222,6 @@ def span_decorator(name):
             if not otel_context:
                 otel_context = context.get_current()
                 logger.info(f"Setting otel_context: {otel_context}")
-                kwargs["otel_context"] = otel_context
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -228,6 +230,9 @@ def span_decorator(name):
             span = tracer.start_span(name, context=otel_context)
             with trace.use_span(span, end_on_exit=False):
                 span.set_attribute("function.name", func.__name__)
+
+                # Set the context here as context is either derived from otel_context or current context
+                kwargs["otel_context"] = otel_context
 
                 logger.info(f"Span: {span}")
                 logger.info(f"context: {context.get_current()}")
