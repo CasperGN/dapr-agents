@@ -181,7 +181,6 @@ def async_span_decorator(name="span"):
             if not otel_context:
                 otel_context = context.get_current()
                 logger.info(f"Setting otel_context: {otel_context}")
-                kwargs["otel_context"] = otel_context
 
             tracer = getattr(self, "_tracer", None)
             if not tracer:
@@ -251,7 +250,7 @@ def span_decorator(name):
     return decorator
 
 
-def restore_otel_context(otel_context: Context) -> Context:
+def restore_otel_context(otel_context: dict[str, str]) -> Context:
     """
     Restore OpenTelemetry context from a previously extracted context dictionary.
     Creates a fresh context to avoid token errors across async boundaries.

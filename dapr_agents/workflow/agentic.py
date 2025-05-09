@@ -835,14 +835,11 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.info(f"Received headers: {request.headers}")
 
             # TODO: If no headers are sent we need to construct the span manually
-            otel_context = {
-                "traceparent": request.headers.get("traceparent", ""),
-                "tracestate": request.headers.get("tracestate", ""),
-            }
-            restored_ctx = restore_otel_context(otel_context=otel_context)
+            otel_context = restore_otel_context(request.headers)
+            logger.info(f"Restored OpenTelemetry context: {otel_context}")
 
             with self._tracer.start_as_current_span(
-                "start_workflow", context=restored_ctx
+                "start_workflow", context=otel_context
             ) as span:
                 span.set_attribute("workflow.name", workflow_name)
                 span.set_attribute("workflow.input", str(input_data))
