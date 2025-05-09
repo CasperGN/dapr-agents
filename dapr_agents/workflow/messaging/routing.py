@@ -3,12 +3,13 @@ import inspect
 import logging
 import threading
 import functools
-from typing import Callable
+from typing import Callable, Union
 
 from dapr.aio.clients.grpc.subscription import Subscription
 from dapr.clients.grpc._response import TopicEventResponse
 from dapr.clients.grpc.subscription import StreamInactiveError
 from dapr.common.pubsub.subscription import StreamCancelledError, SubscriptionMessage
+from dapr_agents.agent.telemetry.otel import restore_otel_context
 from dapr_agents.workflow.messaging.parser import (
     extract_cloudevent_data,
     validate_message_model,
@@ -135,7 +136,7 @@ class MessageRoutingMixin:
         @functools.wraps(method)
         async def wrapped_method(
             message: dict,
-            otel_context: Context,
+            otel_context: Union[Context, dict[str, str]],
         ):
             try:
                 if getattr(method, "_is_workflow", False):
@@ -293,6 +294,8 @@ class MessageRoutingMixin:
                 f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
             )
             # TODO: I think this is a bug. We should extract the context from the parsed message
+            if isinstance(otel_context, dict):
+                otel_context = restore_otel_context(otel_context)
             result = await handler(parsed_message, otel_context=otel_context)
             if result is not None:
                 return TopicEventResponse("success"), result

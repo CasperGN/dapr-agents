@@ -101,7 +101,7 @@ class AssistantAgent(AgentWorkflowBase):
         self,
         ctx: DaprWorkflowContext,
         message: TriggerAction,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).
@@ -163,6 +163,9 @@ class AssistantAgent(AgentWorkflowBase):
         workflow_entry = self.state["instances"][instance_id]
         source = workflow_entry["source"]
         source_workflow_instance_id = workflow_entry["source_workflow_instance_id"]
+
+        if isinstance(otel_context, Context):
+            otel_context = extract_otel_context(otel_context)
 
         # Step 3: Generate Response
         response = yield ctx.call_activity(

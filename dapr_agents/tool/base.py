@@ -1,9 +1,10 @@
 import inspect
 import logging
-from typing import Callable, Type, Optional, Any, Dict
+from typing import Callable, Type, Optional, Any, Dict, Union
 from inspect import signature, Parameter
 from pydantic import BaseModel, Field, ValidationError, model_validator, PrivateAttr
 
+from dapr_agents.agent.telemetry.otel import extract_otel_context, restore_otel_context
 from dapr_agents.tool.utils.tool import ToolHelper
 from dapr_agents.tool.utils.function_calling import to_function_call_definition
 from dapr_agents.types import ToolError
@@ -144,10 +145,14 @@ class AgentTool(BaseModel):
             self._log_and_raise_error(e)
 
     @async_span_decorator("arun")
-    async def arun(self, otel_context: Context, *args, **kwargs) -> Any:
+    async def arun(
+        self, otel_context: Union[Context, dict[str, str]], *args, **kwargs
+    ) -> Any:
         """
         Execute the tool asynchronously (whether it's sync or async under the hood).
         """
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
         try:
             func = self.func or self._run
             kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
@@ -159,8 +164,12 @@ class AgentTool(BaseModel):
         except Exception as e:
             self._log_and_raise_error(e)
 
-    def _run(self, otel_context: Context, *args, **kwargs) -> Any:
+    def _run(
+        self, otel_context: Union[Context, dict[str, str]], *args, **kwargs
+    ) -> Any:
         """Fallback default run logic if no `func` is set."""
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
         if self.func:
             return self.func(otel_context=otel_context * args, **kwargs)
         raise NotImplementedError("No function or _run method defined for this tool.")

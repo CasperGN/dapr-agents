@@ -522,7 +522,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     @span_decorator("save_state")
     def save_state(
         self,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         state: Optional[Union[dict, BaseModel, str]] = None,
         force_reload: bool = False,
     ) -> None:
@@ -656,7 +656,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     async def broadcast_message(
         self,
         message: Union[BaseModel, dict],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         exclude_orchestrator: bool = False,
         **kwargs,
     ) -> None:
@@ -705,7 +705,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         self,
         name: str,
         message: Union[BaseModel, dict],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         **kwargs,
     ) -> None:
         """
@@ -732,6 +732,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             span.set_attribute("message.receiver", agent_metadata["topic_name"])
             span.set_attribute("message.sender", self.name)
             span.set_attribute("message.content", str(message))
+
+            if isinstance(otel_context, dict):
+                otel_context = restore_otel_context(otel_context)
 
             await self.publish_event_message(
                 topic_name=agent_metadata["topic_name"],

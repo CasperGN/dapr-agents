@@ -143,6 +143,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
     @span_decorator("generate_chat")
     def generate(
         self,
+        otel_context: Union[Context, dict[str, str]],
         messages: Union[
             str,
             Dict[str, Any],
@@ -154,7 +155,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         tools: Optional[List[Union[AgentTool, Dict[str, Any]]]] = None,
         response_format: Optional[Type[BaseModel]] = None,
         structured_mode: Literal["json", "function_call"] = "json",
-        otel_context: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Union[Iterator[Dict[str, Any]], Dict[str, Any]]:
         """
@@ -222,12 +222,13 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             logger.info("Invoking ChatCompletion API.")
             logger.debug(f"ChatCompletion API Parameters: {params}")
 
-            logger.info(f"Span context: {otel_context}")
-            logger.info(f"Span: {span}")
+            if isinstance(otel_context, dict):
+                otel_context = restore_otel_context(otel_context)
 
             if self._tracer:
                 with self._tracer.start_as_current_span(
-                    "openai.chat.completions",
+                    name="openai.chat.completions",
+                    context=otel_context,
                     attributes={
                         "gen_ai.request.model": params["model"],
                         "gen_ai.request.message_count": len(params["messages"]),

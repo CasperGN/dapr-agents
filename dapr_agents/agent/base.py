@@ -124,7 +124,7 @@ class AgentBase(BaseModel, ABC):
     def run(
         self,
         input_data: Union[str, Dict[str, Any]],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> Any:
         """
         Executes the agent's main logic based on provided inputs.

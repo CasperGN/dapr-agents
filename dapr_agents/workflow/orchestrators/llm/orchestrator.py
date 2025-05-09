@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime, timedelta
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from dapr.ext.workflow import DaprWorkflowContext
+from dapr_agents.agent.telemetry.otel import extract_otel_context, restore_otel_context
 from dapr_agents.workflow.decorators import task, workflow
 from dapr_agents.workflow.messaging.decorator import message_router
 from dapr_agents.workflow.orchestrators.base import OrchestratorWorkflowBase
@@ -89,7 +90,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self,
         ctx: DaprWorkflowContext,
         message: TriggerAction,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Executes an LLM-driven agentic workflow where the next agent is dynamically selected
@@ -130,6 +131,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Step 2: Retrieve available agents
         agents = yield ctx.call_activity(self.get_agents_metadata_as_string)
+
+        if isinstance(otel_context, Context):
+            otel_context = extract_otel_context(otel_context)
 
         # Step 3: First iteration setup
         if iteration == 0:
@@ -383,7 +387,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         task: str,
         agents: str,
         plan_schema: str,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> List[PlanStep]:
         """
         Generates a structured execution plan for the given task.
@@ -406,7 +410,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         task: str,
         agents: str,
         plan: List[Dict[str, Any]],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> str:
         """
         Initializes the workflow entry and sends the first task briefing to all agents.
@@ -422,6 +426,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             task=task, agents=agents, plan=plan
         )
 
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+
         # Save initial plan using update_workflow_state for consistency
         await self.update_workflow_state(
             instance_id=instance_id, plan=plan, otel_context=otel_context
@@ -436,7 +443,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self,
         instance_id: str,
         task: str,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Saves message to workflow state and broadcasts it to all registered agents.
@@ -448,6 +455,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         # Ensure message is a string
         if not isinstance(task, str):
             raise ValueError("Message must be a string.")
+
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
 
         # Store message in workflow state
         await self.update_workflow_state(
@@ -472,7 +482,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         agents: str,
         plan: str,
         next_step_schema: str,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> NextStep:
         """
         Determines the next agent to respond in a workflow.
@@ -496,7 +506,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         plan: List[Dict[str, Any]],
         step: int,
         substep: Optional[float],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> bool:
         """
         Validates if the next step exists in the current execution plan.
@@ -526,7 +536,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         name: str,
         step: int,
         substep: Optional[float],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> List[dict[str, Any]]:
         """
         Updates step status and triggers the specified agent to perform its activity.
@@ -567,6 +577,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         # Apply global status updates to maintain consistency
         updated_plan = update_step_statuses(plan)
 
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+
         # Save updated plan state
         await self.update_workflow_state(
             instance_id=instance_id, plan=updated_plan, otel_context=otel_context
@@ -590,7 +603,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         step: int,
         substep: Optional[float],
         results: Dict[str, Any],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Updates the task history for a workflow instance by recording the results of an agent's execution.
@@ -609,6 +622,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         logger.info(
             f"Updating task history for {agent} at step {step}, substep {substep} (Instance ID: {instance_id})"
         )
+
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
 
         # Store the agent's response in the message history
         await self.update_workflow_state(
@@ -667,7 +683,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self,
         instance_id: str,
         plan: List[Dict[str, Any]],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         status_updates: Optional[List[Dict[str, Any]]] = None,
         plan_updates: Optional[List[Dict[str, Any]]] = None,
     ):
@@ -712,6 +728,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         # Step 3: Apply global consistency checks for statuses
         plan = update_step_statuses(plan)
 
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+
         # Save to state and update workflow
         await self.update_workflow_state(
             instance_id=instance_id, plan=plan, otel_context=otel_context
@@ -730,7 +749,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         agent: str,
         result: str,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ) -> str:
         """
         Generates a structured summary of task execution based on conversation history, execution results, and the task plan.
@@ -759,7 +778,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         verdict: str,
         summary: str,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Finalizes the workflow by updating the plan, marking the provided step/substep as completed if applicable,
@@ -808,6 +827,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                     parent_step["status"] = "completed"
                     status_updates.append({"step": step, "status": "completed"})
 
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+
         # Apply updates in one call
         if status_updates:
             await self.update_plan(
@@ -826,7 +848,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     async def update_workflow_state(
         self,
         instance_id: str,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         message: Optional[Dict[str, Any]] = None,
         final_output: Optional[str] = None,
         plan: Optional[List[Dict[str, Any]]] = None,
@@ -874,7 +896,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
     async def process_agent_response(
         self,
         message: AgentTaskResponse,
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Processes agent response messages sent directly to the agent's topic.
@@ -898,6 +920,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 f"{self.name} processing agent response for workflow instance '{workflow_instance_id}'."
             )
             # Set the W3C headers for OpenTelemetry tracing context propagation through DaprWorkflowClient
+            if isinstance(otel_context, Context):
+                otel_context = extract_otel_context(otel_context)
+
             if isinstance(message, dict):
                 message["otel_context"] = otel_context
             else:

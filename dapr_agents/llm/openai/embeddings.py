@@ -88,7 +88,7 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
     def create_embedding(
         self,
         input: Union[str, List[Union[str, List[int]]]],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         model: Optional[str] = None,
     ) -> CreateEmbeddingResponse:
         """

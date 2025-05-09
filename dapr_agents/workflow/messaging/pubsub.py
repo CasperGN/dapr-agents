@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from dapr.aio.clients import DaprClient
 from opentelemetry.context import Context
 
+from dapr_agents.agent.telemetry.otel import extract_otel_context
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +96,7 @@ class DaprPubSub(BaseModel):
         pubsub_name: str,
         source: str,
         message: Union[BaseModel, dict, Any],
-        otel_context: Context,
+        otel_context: Union[Context, dict[str, str]],
         message_type: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -134,6 +136,9 @@ class DaprPubSub(BaseModel):
             "cloudevent.source": source,
         }
         metadata.update(kwargs)
+
+        if isinstance(otel_context, Context):
+            otel_context = extract_otel_context(otel_context)
 
         for key, value in otel_context.items():
             metadata[f"cloudevent.{key}"] = value
