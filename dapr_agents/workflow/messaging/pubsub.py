@@ -66,7 +66,6 @@ class DaprPubSub(BaseModel):
             logger.info(
                 f"Publishing message to topic '{topic_name}' on pub/sub '{pubsub_name}'."
             )
-            logger.info(f"Message: {json_message}, Metadata: {metadata}")
 
             async with DaprClient() as client:
                 await client.publish_event(
