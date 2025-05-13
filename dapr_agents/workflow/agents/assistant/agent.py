@@ -31,7 +31,6 @@ from dapr_agents.workflow.messaging.decorator import message_router
 
 from pydantic import PrivateAttr
 from dapr_agents.agent.telemetry import (
-    DaprAgentsOTel,
     async_span_decorator,
     span_decorator,
     extract_otel_context,
@@ -69,11 +68,7 @@ class AssistantAgent(AgentWorkflowBase):
         """Initializes the workflow with agentic execution capabilities."""
 
         try:
-            otel_client = DaprAgentsOTel(
-                service_name=self.name,
-                otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-            )
-            provider = otel_client.create_and_instrument_tracer_provider()
+            provider = trace.get_tracer_provider()
             logger.info(f"Created provider: {provider}")
 
             self._tracer = provider.get_tracer(f"{self.name}_tracer")

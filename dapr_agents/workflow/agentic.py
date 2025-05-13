@@ -23,6 +23,7 @@ from typing import (
 )
 from pydantic import BaseModel, Field, ValidationError, PrivateAttr
 from dapr.clients import DaprClient
+from dapr_agents.agent.telemetry.otel import DaprAgentsOTel
 from dapr_agents.agent.utils.text_printer import ColorTextFormatter
 from dapr_agents.memory import (
     ConversationListMemory,
@@ -116,7 +117,11 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         """Initializes the workflow service, messaging, and metadata storage."""
 
         try:
-            provider = trace.get_tracer_provider()
+            otel_client = DaprAgentsOTel(
+                service_name=self.name,
+                otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+            )
+            provider = otel_client.create_and_instrument_tracer_provider()
 
             self._tracer = provider.get_tracer(f"{self.name}_tracer")
 
