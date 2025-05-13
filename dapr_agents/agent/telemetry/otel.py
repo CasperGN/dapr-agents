@@ -161,6 +161,7 @@ class DaprAgentsOTel:
             else f"{endpoint}/v1/{telemetry_type}"
         )
         endpoint = endpoint if endpoint.startswith("http://") else f"http://{endpoint}"
+        logger.info(f"Endpoint: {endpoint}")
 
         return endpoint
 

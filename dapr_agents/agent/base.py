@@ -146,6 +146,7 @@ class AgentBase(BaseModel, ABC):
                 otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
             )
             provider = otel_client.create_and_instrument_tracer_provider()
+            logger.info(f"Created provider: {provider}")
 
             self._tracer = provider.get_tracer(f"{self.name}_tracer")
 
