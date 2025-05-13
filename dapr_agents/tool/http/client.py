@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry import trace
 from dapr_agents.agent.telemetry.otel import extract_otel_context
+from opentelemetry.semconv.trace import SpanAttributes
 
 
 logger = logging.getLogger(__name__)
@@ -89,8 +90,7 @@ class DaprHTTPClient(BaseModel):
             logger.error(f"Error validating endpoint: {e}")
             raise e
 
-        span = self._tracer.start_span(name="http_tool_request")
-        with trace.use_span(span, end_on_exit=False):
+        with self._tracer.start_as_current_span(name="http_tool_request") as span:
             headers = self._generate_cloudevent_headers()
             if self.headers:
                 headers.update(self.headers)
@@ -102,10 +102,23 @@ class DaprHTTPClient(BaseModel):
 
             match verb.upper():
                 case "GET":
+                    span.set_attribute(SpanAttributes.HTTP_METHOD, "GET")
+                    for header, value in headers.items():
+                        span.set_attribute(f"http.request.header.{header}", value)
                     response = requests.get(url=str(url), headers=headers)
+                    span.set_attribute(
+                        "http.response.status_code", response.status_code
+                    )
                 case "POST":
+                    span.set_attribute(SpanAttributes.HTTP_METHOD, "POST")
+                    for header, value in headers.items():
+                        span.set_attribute(f"http.request.header.{header}", value)
+                    span.set_attribute("http.equest.body", str(payload))
                     response = requests.post(
                         url=str(url), headers=headers, json=payload
+                    )
+                    span.set_attribute(
+                        "http.response.status_code", response.status_code
                     )
                 case _:
                     raise ValueError(
