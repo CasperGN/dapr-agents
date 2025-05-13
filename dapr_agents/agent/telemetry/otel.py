@@ -107,14 +107,6 @@ class DaprAgentsOTel:
         tracer_processor = BatchSpanProcessor(trace_exporter)
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
-        from opentelemetry.sdk.trace.export import (
-            ConsoleSpanExporter,
-            SimpleSpanProcessor,
-        )
-
-        trace.get_tracer_provider().add_span_processor(  # type: ignore
-            SimpleSpanProcessor(ConsoleSpanExporter())
-        )
         set_tracer_provider(tracer_provider)
         return tracer_provider
 
