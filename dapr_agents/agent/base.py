@@ -149,6 +149,7 @@ class AgentBase(BaseModel, ABC):
             logger.info(f"Created provider: {provider}")
 
             self._tracer = provider.get_tracer(f"{self.name}_tracer")
+            logger.info(f"Fetched tracer: {self._tracer}")
 
         except Exception as e:
             logger.warning(

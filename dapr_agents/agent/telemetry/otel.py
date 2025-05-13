@@ -94,19 +94,27 @@ class DaprAgentsOTel:
             telemetry_type="traces",
         )
         try:
-            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "0.0"))
+            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "1.0"))
         except ValueError:
             # There's no need to actually raise an error here, just set to 1.0
             logging.warning(
-                "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 0.0."
+                "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 1.0."
             )
-            sampling_ratio = 0.0
+            sampling_ratio = 1.0
 
-        sampler = TraceIdRatioBased(sampling_ratio)
+        sampler = TraceIdRatioBased(sampling_ratio / 1000)
         trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
         tracer_processor = BatchSpanProcessor(trace_exporter)
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
+        from opentelemetry.sdk.trace.export import (
+            ConsoleSpanExporter,
+            SimpleSpanProcessor,
+        )
+
+        trace.get_tracer_provider().add_span_processor(  # type: ignore
+            SimpleSpanProcessor(ConsoleSpanExporter())
+        )
         set_tracer_provider(tracer_provider)
         return tracer_provider
 
