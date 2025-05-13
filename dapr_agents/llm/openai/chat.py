@@ -260,6 +260,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
                     )
 
                 logger.info("Chat completion retrieved successfully.")
+                logger.info(f"Response: {response}")
                 return ResponseHandler.process_response(
                     response,
                     llm_provider=self.provider,
