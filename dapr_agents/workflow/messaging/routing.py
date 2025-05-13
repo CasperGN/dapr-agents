@@ -223,25 +223,24 @@ class MessageRoutingMixin:
 
             # Handle OpenTelemetry context propagation
             otel_context = None
-            actual_message_content = event_data
 
             logger.info(f"Received message with type '{event_type}'")
             logger.info(f"Message metadata: {metadata}")
             logger.info(f"Message data: {event_data}")
-            logger.info(f"Message content: {actual_message_content}")
-            # Check if the message contains a wrapped structure with OpenTelemetry context
-            if (
-                isinstance(event_data, dict)
-                and "message_content" in event_data
-                and "otel_context" in event_data
-            ):
-                otel_context = event_data.get("otel_context")
-                actual_message_content = event_data.get("message_content")
+
+            # Attempt to extract OpenTelemetry context from the message headers
+            if "traceparent" in metadata["headers"]:
+                ctx = {
+                    "traceparent": metadata["headers"]["traceparent"],
+                    "tracestate": metadata["headers"].get("tracestate"),
+                }
+                otel_context = restore_otel_context(ctx)
+                logger.info(f"Extracted OpenTelemetry context: {otel_context}")
 
                 return await self._process_message_with_context(
                     handler_map,
                     event_type,
-                    actual_message_content,
+                    event_data,
                     metadata,
                     otel_context=otel_context,
                 )
@@ -249,7 +248,7 @@ class MessageRoutingMixin:
             # Process message normally if no context or if context restoration failed
             logger.info("Processing message without OpenTelemetry context.")
             return await self._process_message_with_context(
-                handler_map, event_type, actual_message_content, metadata
+                handler_map, event_type, event_data, metadata
             )
 
         except Exception as e:
@@ -293,9 +292,6 @@ class MessageRoutingMixin:
             logger.info(
                 f"Dispatched to handler '{handler.__name__}' for event type '{event_type}'"
             )
-            # TODO: I think this is a bug. We should extract the context from the parsed message
-            if isinstance(otel_context, dict):
-                otel_context = restore_otel_context(otel_context)
             result = await handler(parsed_message, otel_context=otel_context)
             if result is not None:
                 return TopicEventResponse("success"), result
