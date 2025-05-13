@@ -223,11 +223,7 @@ class MessageRoutingMixin:
 
             # Handle OpenTelemetry context propagation
             otel_context = None
-
-            logger.info(f"Received message with type '{event_type}'")
-            logger.info(f"Message metadata: {metadata}")
-            logger.info(f"Message data: {event_data}")
-
+            
             # Attempt to extract OpenTelemetry context from the message headers
             if "traceparent" in metadata["headers"]:
                 ctx = {
