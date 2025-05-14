@@ -109,17 +109,9 @@ class AssistantAgent(AgentWorkflowBase):
         iteration = message.get("iteration", 0)
         instance_id = ctx.instance_id
 
-        if isinstance(task, str):
-            # Only set content attribute if it's reasonable in size
-            if len(task) < 1000:
-                span.set_attribute("workflow.task", task)
-            span.set_attribute("workflow.task_size", len(task))
-        else:
-            span.set_attribute("workflow.task_type", str(type(task)))
-
+        span.set_attribute("workflow.task_size", len(task))
         span.set_attribute("workflow.id", instance_id)
         span.set_attribute("workflow.iteration", iteration)
-        span.set_attribute("workflow.task", task)
 
         if not ctx.is_replaying:
             logger.info(
