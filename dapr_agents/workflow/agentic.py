@@ -123,7 +123,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             )
             provider = otel_client.create_and_instrument_tracer_provider()
 
-            self._tracer = provider.get_tracer(f"{self.name}_tracer")
+            self._tracer = provider.get_tracer(f"agent_tracer")
 
             # We can instrument Asyncio automatically
             AsyncioInstrumentor().instrument()

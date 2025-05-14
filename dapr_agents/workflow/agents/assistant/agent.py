@@ -71,7 +71,7 @@ class AssistantAgent(AgentWorkflowBase):
             provider = trace.get_tracer_provider()
             logger.info(f"Created provider: {provider}")
 
-            self._tracer = provider.get_tracer(f"{self.name}_tracer")
+            self._tracer = provider.get_tracer("agent_tracer")
 
         except Exception as e:
             logger.warning(

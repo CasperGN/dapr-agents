@@ -42,7 +42,7 @@ class AgentToolExecutor(BaseModel):
         try:
             provider = trace.get_tracer_provider()
 
-            self._tracer = provider.get_tracer("agent_tool_exec_tracer")
+            self._tracer = provider.get_tracer("agent_tracer")
         except Exception as e:
             logger.warning(
                 f"OpenTelemetry initialization failed: {e}. Continuing without telemetry."

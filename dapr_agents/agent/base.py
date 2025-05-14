@@ -148,7 +148,7 @@ class AgentBase(BaseModel, ABC):
             provider = otel_client.create_and_instrument_tracer_provider()
             logger.info(f"Created provider: {provider}")
 
-            self._tracer = provider.get_tracer(f"{self.name}_tracer")
+            self._tracer = provider.get_tracer("agent_tracer")
             logger.info(f"Fetched tracer: {self._tracer}")
 
         except Exception as e:
