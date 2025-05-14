@@ -118,7 +118,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
 
         try:
             otel_client = DaprAgentsOTel(
-                service_name=os.getenv("HOSTNAME", "default-agent-name").split("-")[0],
+                service_name=os.getenv("HOSTNAME", "default-agent-name"),
                 otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
             )
             provider = otel_client.create_and_instrument_tracer_provider()
