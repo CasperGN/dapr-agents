@@ -38,6 +38,7 @@ from dapr_agents.agent.telemetry import (
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
+from opentelemetry.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -679,10 +680,12 @@ class WorkflowApp(BaseModel):
             )
             return None
 
+    @span_decorator("raise_workflow_event")
     def raise_workflow_event(
         self,
         instance_id: str,
         event_name: str,
+        otel_context: Union[Context, dict[str, str]],
         *,
         data: Any | None = None,
     ) -> None:
@@ -701,6 +704,7 @@ class WorkflowApp(BaseModel):
             logger.info(
                 f"Raising workflow event '{event_name}' for instance '{instance_id}'"
             )
+            logger.info(f"TODO propagate the otel_context to wf: {otel_context}")
             self.wf_client.raise_workflow_event(
                 instance_id=instance_id, event_name=event_name, data=data
             )

@@ -928,16 +928,12 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             else:
                 message.otel_context = otel_context
 
-            # TODO
-            logger.info(
-                f"Agent response for workflow instance '{workflow_instance_id}': {message}"
-            )
-
             # Raise a workflow event with the Agent's Task Response
             self.raise_workflow_event(
                 instance_id=workflow_instance_id,
                 event_name="AgentTaskResponse",
                 data=message,
+                otel_context=otel_context,
             )
 
         except Exception as e:
