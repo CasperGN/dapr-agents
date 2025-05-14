@@ -16,7 +16,7 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import set_tracer_provider, Status, StatusCode
 from opentelemetry.context.context import Context
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -105,7 +105,6 @@ class DaprAgentsOTel:
         sampler = TraceIdRatioBased(sampling_ratio / 1000)
         trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
         tracer_processor = BatchSpanProcessor(trace_exporter)
-        # tracer_processor = SimpleSpanProcessor(trace_exporter)
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
         set_tracer_provider(tracer_provider)
