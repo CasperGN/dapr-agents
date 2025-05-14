@@ -104,8 +104,8 @@ class DaprAgentsOTel:
 
         sampler = TraceIdRatioBased(sampling_ratio / 1000)
         trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
-        # tracer_processor = BatchSpanProcessor(trace_exporter)
-        tracer_processor = SimpleSpanProcessor(trace_exporter)
+        tracer_processor = BatchSpanProcessor(trace_exporter)
+        # tracer_processor = SimpleSpanProcessor(trace_exporter)
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
         set_tracer_provider(tracer_provider)
