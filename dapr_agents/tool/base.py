@@ -164,8 +164,10 @@ class AgentTool(BaseModel):
         """
         Execute the tool asynchronously (whether it's sync or async under the hood).
         """
+        logger.info(f"Otel context: {otel_context}")
         if isinstance(otel_context, dict):
             otel_context = restore_otel_context(otel_context)
+            logger.info(f"Restored otel context: {otel_context}")
         try:
             func = self.func or self._run
             kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
