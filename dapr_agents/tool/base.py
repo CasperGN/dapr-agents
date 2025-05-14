@@ -166,15 +166,13 @@ class AgentTool(BaseModel):
         """
         logger.info(f"Otel context: {otel_context}")
         try:
-            with self._tracer.start_as_current_span(name="arun_tool", context=otel_context) as span:
+            with self._tracer.start_as_current_span(
+                name="arun_tool", context=otel_context
+            ) as span:
                 span.set_attribute("tool.name", self.name)
                 func = self.func or self._run
                 kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
-                return (
-                    await func(**kwargs)
-                    if self._is_async
-                    else func(**kwargs)
-                )
+                return await func(**kwargs) if self._is_async else func(**kwargs)
         except Exception as e:
             self._log_and_raise_error(e)
 
