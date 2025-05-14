@@ -16,7 +16,7 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.trace import set_tracer_provider, Status, StatusCode
 from opentelemetry.context.context import Context
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
@@ -94,17 +94,18 @@ class DaprAgentsOTel:
             telemetry_type="traces",
         )
         try:
-            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "1.0"))
+            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "1000.0"))
         except ValueError:
             # There's no need to actually raise an error here, just set to 1.0
             logging.warning(
                 "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 1.0."
             )
-            sampling_ratio = 1.0
+            sampling_ratio = 1000.0
 
         sampler = TraceIdRatioBased(sampling_ratio / 1000)
         trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
-        tracer_processor = BatchSpanProcessor(trace_exporter)
+        # tracer_processor = BatchSpanProcessor(trace_exporter)
+        tracer_processor = SimpleSpanProcessor(trace_exporter)
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
         set_tracer_provider(tracer_provider)
@@ -188,7 +189,7 @@ def async_span_decorator(name):
                 return func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
-                name, context=otel_context, end_on_exit=False
+                name, context=otel_context, end_on_exit=True
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
@@ -225,7 +226,7 @@ def span_decorator(name):
                 return func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
-                name, context=otel_context, end_on_exit=False
+                name, context=otel_context, end_on_exit=True
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
