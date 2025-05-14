@@ -141,7 +141,7 @@ class AgentBase(BaseModel, ABC):
 
         try:
             otel_client = DaprAgentsOTel(
-                service_name=self.name,
+                service_name=os.getenv("HOSTNAME", "default-agent-name").split("-")[0],
                 otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
             )
             logger.info("Creating provider!")
