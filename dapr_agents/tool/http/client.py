@@ -57,7 +57,9 @@ class DaprHTTPClient(BaseModel):
                 f"OpenTelemetry initialization failed: {e}. Continuing without telemetry."
             )
 
+        logger.info("Auto instrumenting")
         RequestsInstrumentor().instrument()
+        logger.info("Auto instrumenting set up")
 
         logger.debug("Initializing DaprHTTPClient client")
 
@@ -113,7 +115,6 @@ class DaprHTTPClient(BaseModel):
                     span.set_attribute(SpanAttributes.HTTP_METHOD, "POST")
                     for header, value in headers.items():
                         span.set_attribute(f"http.request.header.{header}", value)
-                    span.set_attribute("http.equest.body", str(payload))
                     response = requests.post(
                         url=str(url), headers=headers, json=payload
                     )

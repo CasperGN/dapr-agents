@@ -22,9 +22,8 @@ from dapr_agents.agent.telemetry import (
     span_decorator,
 )
 
-from opentelemetry import trace
 from opentelemetry.context import Context
-from opentelemetry.trace import Tracer, set_tracer_provider
+from opentelemetry.trace import Tracer
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +144,9 @@ class AgentBase(BaseModel, ABC):
                 service_name=self.name,
                 otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
             )
+            logger.info("Creating provider!")
             provider = otel_client.create_and_instrument_tracer_provider()
+            logger.info("Provider created!")
 
             self._tracer = provider.get_tracer("agent_tracer")
 
