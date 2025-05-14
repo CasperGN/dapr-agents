@@ -57,10 +57,6 @@ class DaprHTTPClient(BaseModel):
                 f"OpenTelemetry initialization failed: {e}. Continuing without telemetry."
             )
 
-        logger.info("Auto instrumenting")
-        RequestsInstrumentor().instrument()
-        logger.info("Auto instrumenting set up")
-
         logger.debug("Initializing DaprHTTPClient client")
 
         super().model_post_init(__context)
