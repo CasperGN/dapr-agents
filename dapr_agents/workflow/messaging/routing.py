@@ -223,7 +223,7 @@ class MessageRoutingMixin:
 
             # Handle OpenTelemetry context propagation
             otel_context = None
-            
+
             # Attempt to extract OpenTelemetry context from the message headers
             if "traceparent" in metadata["headers"]:
                 ctx = {
