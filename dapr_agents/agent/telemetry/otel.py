@@ -94,15 +94,21 @@ class DaprAgentsOTel:
             telemetry_type="traces",
         )
         try:
-            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "1000.0"))
+            sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "1.0"))
         except ValueError:
             # There's no need to actually raise an error here, just set to 1.0
             logging.warning(
                 "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 1.0."
             )
-            sampling_ratio = 1000.0
+            sampling_ratio = 1.0
 
-        sampler = TraceIdRatioBased(sampling_ratio / 1000)
+        if sampling_ratio > 1.0 or sampling_ratio < 0.0:
+            logging.warning(
+                "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 1.0."
+            )
+            raise ValueError("Value must be between 1.0 and 0.0.")
+
+        sampler = TraceIdRatioBased(sampling_ratio)
         trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
         tracer_processor = BatchSpanProcessor(trace_exporter)
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
@@ -188,7 +194,7 @@ def async_span_decorator(name):
                 return func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
-                name, context=otel_context, end_on_exit=True
+                name, context=otel_context, end_on_exit=False
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
@@ -225,7 +231,7 @@ def span_decorator(name):
                 return func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
-                name, context=otel_context, end_on_exit=True
+                name, context=otel_context, end_on_exit=False
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
