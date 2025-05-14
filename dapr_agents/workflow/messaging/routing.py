@@ -280,6 +280,7 @@ class MessageRoutingMixin:
 
         schema = route_entry["schema"]
         handler = route_entry["handler"]
+        logger.info(f"Message for handler={handler}, otel_context={otel_context}")
 
         try:
             parsed_message = validate_message_model(schema, message_data)
