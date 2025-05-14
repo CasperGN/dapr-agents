@@ -10,6 +10,7 @@ from dapr_agents.tool.utils.function_calling import to_function_call_definition
 from dapr_agents.types import ToolError
 
 from dapr_agents.agent.telemetry import async_span_decorator
+from opentelemetry import trace
 from opentelemetry.context import Context
 
 
@@ -74,6 +75,18 @@ class AgentTool(BaseModel):
         Handles post-initialization logic for both class-based and function-based tools.
         Ensures `name` formatting and infers `args_model` if necessary.
         """
+
+        try:
+            provider = trace.get_tracer_provider()
+
+            self._tracer = provider.get_tracer("agent_tracer")
+
+        except Exception as e:
+            logger.warning(
+                f"OpenTelemetry initialization failed: {e}. Continuing without telemetry."
+            )
+            self._tracer = None
+
         self.name = self.name.replace(" ", "_").title().replace("_", "")
 
         if self.func:
