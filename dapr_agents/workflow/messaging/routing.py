@@ -231,7 +231,6 @@ class MessageRoutingMixin:
                     "tracestate": metadata["headers"].get("tracestate"),
                 }
                 otel_context = restore_otel_context(ctx)
-                logger.info(f"Extracted OpenTelemetry context: {otel_context}")
 
                 return await self._process_message_with_context(
                     handler_map,
@@ -280,7 +279,6 @@ class MessageRoutingMixin:
 
         schema = route_entry["schema"]
         handler = route_entry["handler"]
-        logger.info(f"Message for handler={handler}, otel_context={otel_context}")
 
         try:
             parsed_message = validate_message_model(schema, message_data)
