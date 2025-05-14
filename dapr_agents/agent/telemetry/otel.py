@@ -191,7 +191,7 @@ def async_span_decorator(name):
             tracer = getattr(self, "_tracer", None)
             if not tracer:
                 logger.info("No tracer found, executing function without tracing.")
-                return func(self, *args, **kwargs)
+                return await func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
                 name, context=otel_context, end_on_exit=True
