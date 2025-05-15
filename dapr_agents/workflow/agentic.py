@@ -745,7 +745,10 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 "dapr_agents.message.receiver", agent_metadata["topic_name"]
             )
             span.set_attribute(
-                "dapr_agents.message.content", message.get("content", "NO_MSG")
+                "dapr_agents.message.content",
+                message.get("content", "NO_MSG")
+                if isinstance(message, dict)
+                else message.model_dump().get("content", "NO_MSG"),
             )
 
             if isinstance(otel_context, dict):
