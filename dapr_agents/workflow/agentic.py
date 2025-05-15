@@ -815,6 +815,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
     async def run_workflow_from_request(
         self,
         request: Request,
+        otel_context: Union[Context, dict[str, str]],
     ) -> JSONResponse:
         """
         Run a workflow instance triggered by an incoming HTTP POST request.
