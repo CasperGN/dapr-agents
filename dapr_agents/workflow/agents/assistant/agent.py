@@ -719,8 +719,17 @@ class AssistantAgent(AgentWorkflowBase):
 
             span.set_attribute("dapr_agents.message.sender", source)
             span.set_attribute("dapr_agents.message.type", message_type)
-            # TODO
-            logger.info(f"##### message content: {message_content}")
+            span.set_attribute(
+                "dapr_agents.message.content_length", len(message_content)
+            )
+            span.set_attribute(
+                "dapr_agents.message.content",
+                message_content[:500],
+            )
+            span.set_attribute(
+                "dapr_agents.message.content_truncated",
+                True if len(message_content) > 500 else False,
+            )
 
             # Log and process the valid broadcast message
             logger.debug(

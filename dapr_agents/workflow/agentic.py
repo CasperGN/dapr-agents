@@ -587,8 +587,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                     f"Invalid state type: {type(self.state)}. Expected dict, BaseModel, or JSON string."
                 )
 
-            # TODO:
-            logger.info(f"##### State to store: {state_to_save}")
             # Save state in Dapr
             self._state_store_client.save_state(self.state_key, state_to_save)
             logger.debug(f"Successfully saved state for key '{self.state_key}'.")
