@@ -320,18 +320,21 @@ class AssistantAgent(AgentWorkflowBase):
 
         # Construct prompt messages
         messages = self.construct_messages(task or {})
-        span.set_attribute("workflow.messages_size", len(messages))
-        span.set_attribute("workflow.id", instance_id)
+        span.set_attribute("dapr_agents.workflow.id", instance_id)
 
         # Store message in workflow state and local memory
         if task:
             task_message = {"role": "user", "content": task}
+            # TODO
+            logger.info(f"##### Task: {task}")
             await self.update_workflow_state(
                 instance_id=instance_id, message=task_message, otel_context=otel_context
             )
 
         # Process conversation iterations
         messages += self.tool_history
+        # TODO
+        logger.info(f"##### Messages: {messages}")
 
         # Generate Tool Calls
         response: ChatCompletion = self.llm.generate(
@@ -342,6 +345,7 @@ class AssistantAgent(AgentWorkflowBase):
         )
 
         # Return chat completion as a dictionary
+        span.end()
         return response.model_dump()
 
     @task
@@ -683,13 +687,18 @@ class AssistantAgent(AgentWorkflowBase):
             None: The function updates the agent's memory and ignores unwanted messages.
         """
         try:
+            span = trace.get_current_span()
+
             # Extract metadata safely from message["_message_metadata"]
             metadata = message.get("_message_metadata", {})
+            # TODO
+            logger.info(f"##### metadata: {metadata}")
 
             if not isinstance(metadata, dict):
                 logger.warning(
                     f"{self.name} received a broadcast message with invalid metadata format. Ignoring."
                 )
+                span.end()
                 return
 
             source = metadata.get("source", "unknown_source")
@@ -705,7 +714,13 @@ class AssistantAgent(AgentWorkflowBase):
                 logger.info(
                     f"{self.name} ignored its own broadcast message of type '{message_type}'."
                 )
+                span.end()
                 return
+
+            span.set_attribute("dapr_agents.message.sender", source)
+            span.set_attribute("dapr_agents.message.type", message_type)
+            # TODO
+            logger.info(f"##### message content: {message_content}")
 
             # Log and process the valid broadcast message
             logger.debug(
@@ -715,5 +730,8 @@ class AssistantAgent(AgentWorkflowBase):
             # Store the message in local memory
             self.memory.add_message(message)
 
+            span.end()
+
         except Exception as e:
+            span.end()
             logger.error(f"Error processing broadcast message: {e}", exc_info=True)

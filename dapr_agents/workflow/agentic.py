@@ -741,9 +741,12 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.info(f"{self.name} sending message to agent '{name}'.")
 
             span = trace.get_current_span()
-            span.set_attribute("message.receiver", agent_metadata["topic_name"])
-            span.set_attribute("message.sender", self.name)
-            span.set_attribute("message.content", str(message))
+            span.set_attribute(
+                "dapr_agents.message.receiver", agent_metadata["topic_name"]
+            )
+            span.set_attribute(
+                "dapr_agents.message.content", message.get("content", "NO_MSG")
+            )
 
             if isinstance(otel_context, dict):
                 otel_context = restore_otel_context(otel_context)
@@ -758,10 +761,12 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             )
 
             logger.debug(f"{self.name} sent message to agent '{name}'.")
+            span.end()
         except Exception as e:
             logger.error(
                 f"Failed to send message to agent '{name}': {e}", exc_info=True
             )
+            span.end()
 
     def print_interaction(
         self, sender_agent_name: str, recipient_agent_name: str, message: str

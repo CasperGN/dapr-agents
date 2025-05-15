@@ -908,12 +908,16 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             None: The function raises a workflow event with the agent's response.
         """
         try:
+            span = trace.get_current_span()
+
             workflow_instance_id = message.get("workflow_instance_id")
+            span.set_attribute("dapr_agents.workflow.id", workflow_instance_id)
 
             if not workflow_instance_id:
                 logger.error(
                     f"{self.name} received an agent response without a valid workflow_instance_id. Ignoring."
                 )
+                span.end()
                 return
 
             logger.info(
@@ -928,7 +932,11 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             else:
                 message.otel_context = otel_context
 
+            # TODO:
+            logger.info(f"##### message: {message}")
+
             # Raise a workflow event with the Agent's Task Response
+            # TODO: There's no OTel context propagation happening from here on..
             self.raise_workflow_event(
                 instance_id=workflow_instance_id,
                 event_name="AgentTaskResponse",
