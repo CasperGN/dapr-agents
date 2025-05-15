@@ -43,6 +43,7 @@ from dapr_agents.agent.telemetry import (
 from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -188,6 +189,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             service_port=port,
             service_host=host,
         )
+
+        # Instrument the FastAPI server
+        FastAPIInstrumentor.instrument_app(self.app)
 
         # Register built-in routes
         self.app.add_api_route("/status", lambda: {"ok": True})
@@ -807,6 +811,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.error(f"Failed to register metadata for agent {self.name}: {e}")
             raise e
 
+    @async_span_decorator("run_wf_from_request")
     async def run_workflow_from_request(
         self,
         request: Request,
@@ -824,6 +829,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         """
 
         try:
+            span = trace.get_current_span()
             # Extract workflow name from query parameters or use default
             workflow_name = request.query_params.get("name") or self._workflow_name
             if not workflow_name:
@@ -854,37 +860,29 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             otel_context = restore_otel_context(request.headers)
             logger.info(f"Restored OpenTelemetry context: {otel_context}")
 
-            with self._tracer.start_as_current_span(
-                "start_workflow", context=otel_context
-            ) as span:
-                span.set_attribute("workflow.name", workflow_name)
-                span.set_attribute("workflow.input", str(input_data))
+            span.set_attribute("dapr_agents.workflow.name", workflow_name)
+            span.set_attribute("dapr_agents.workflow.input", str(input_data))
 
-                logger.info(
-                    f"Starting workflow '{workflow_name}' with input: {input_data}"
-                )
-                instance_id = self.run_workflow(
-                    workflow=workflow_name, input=input_data, otel_context=otel_context
-                )
+            logger.info(f"Starting workflow '{workflow_name}' with input: {input_data}")
+            instance_id = self.run_workflow(
+                workflow=workflow_name, input=input_data, otel_context=otel_context
+            )
 
-                span.set_attribute("workflow.instance_id", instance_id)
+            span.set_attribute("dapr_agents.workflow.id", instance_id)
 
-                asyncio.create_task(self.monitor_workflow_completion(instance_id))
+            asyncio.create_task(self.monitor_workflow_completion(instance_id))
 
-                return JSONResponse(
-                    content={
-                        "message": "Workflow initiated successfully.",
-                        "workflow_instance_id": instance_id,
-                    },
-                    status_code=status.HTTP_202_ACCEPTED,
-                )
+            return JSONResponse(
+                content={
+                    "message": "Workflow initiated successfully.",
+                    "workflow_instance_id": instance_id,
+                },
+                status_code=status.HTTP_202_ACCEPTED,
+            )
 
         except Exception as e:
             logger.error(f"Error starting workflow: {str(e)}", exc_info=True)
-
-            # if span.is_recording():
-            #    span.set_attribute("error", str(e))
-            #    span.record_exception(e)
+            span.record_exception(e)
 
             return JSONResponse(
                 content={"error": "Failed to start workflow", "details": str(e)},
