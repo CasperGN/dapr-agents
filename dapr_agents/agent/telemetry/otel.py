@@ -194,7 +194,7 @@ def async_span_decorator(name):
                 return await func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
-                name, context=otel_context, end_on_exit=True
+                name, context=otel_context, end_on_exit=False
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
@@ -231,7 +231,7 @@ def span_decorator(name):
                 return func(self, *args, **kwargs)
 
             with tracer.start_as_current_span(
-                name, context=otel_context, end_on_exit=True
+                name, context=otel_context, end_on_exit=False
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
