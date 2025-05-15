@@ -207,8 +207,8 @@ def async_span_decorator(name):
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
-                    logger.info(f"Context: {otel_context}")
-                    logger.error(f"Error: {e}")
+                    span.end()
+                    context.attach(context.Context())
                     raise
 
         return wrapper
@@ -246,6 +246,8 @@ def span_decorator(name):
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
+                    span.end()
+                    context.attach(context.Context())
                     raise
 
         return wrapper
