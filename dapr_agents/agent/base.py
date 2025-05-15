@@ -119,11 +119,9 @@ class AgentBase(BaseModel, ABC):
         return self.memory.get_messages()
 
     @abstractmethod
-    @span_decorator("agent_run")
     def run(
         self,
         input_data: Union[str, Dict[str, Any]],
-        otel_context: Union[Context, dict[str, str]],
     ) -> Any:
         """
         Executes the agent's main logic based on provided inputs.

@@ -406,6 +406,8 @@ class WorkflowApp(BaseModel):
             Exception: If workflow execution fails.
         """
         try:
+            # TODO
+            # span = trace.get_current_span()
             # Start Workflow Runtime
             if not self.wf_runtime_is_running:
                 self.start_runtime()
@@ -701,6 +703,8 @@ class WorkflowApp(BaseModel):
             Exception: If raising the event fails.
         """
         try:
+            # TODO
+            # span = trace.get_current_span()
             logger.info(
                 f"Raising workflow event '{event_name}' for instance '{instance_id}'"
             )

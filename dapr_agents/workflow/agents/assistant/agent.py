@@ -283,7 +283,6 @@ class AssistantAgent(AgentWorkflowBase):
                 logger.info(
                     f"Workflow {instance_id} has been finalized with verdict: {verdict}"
                 )
-            span.end()
             return response_message
 
         else:
@@ -333,8 +332,6 @@ class AssistantAgent(AgentWorkflowBase):
 
         # Process conversation iterations
         messages += self.tool_history
-        # TODO
-        logger.info(f"##### Messages: {messages}")
 
         # Generate Tool Calls
         response: ChatCompletion = self.llm.generate(
@@ -345,14 +342,10 @@ class AssistantAgent(AgentWorkflowBase):
         )
 
         # Return chat completion as a dictionary
-        span.end()
         return response.model_dump()
 
     @task
-    @span_decorator("get_response_message")
-    def get_response_message(
-        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+    def get_response_message(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extracts the response message from the first choice in the LLM response.
 
@@ -369,10 +362,7 @@ class AssistantAgent(AgentWorkflowBase):
         return response_message
 
     @task
-    @span_decorator("get_finish_reason")
-    def get_finish_reason(
-        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
-    ) -> str:
+    def get_finish_reason(self, response: Dict[str, Any]) -> str:
         """
         Extracts the finish reason from the LLM response, indicating why generation stopped.
 
@@ -401,9 +391,8 @@ class AssistantAgent(AgentWorkflowBase):
         return choice
 
     @task
-    @span_decorator("get_tool_calls")
     def get_tool_calls(
-        self, response: Dict[str, Any], otel_context: Dict[str, Any] = None
+        self, response: Dict[str, Any]
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Extracts tool calls from the first choice in the LLM response, if available.
@@ -627,8 +616,12 @@ class AssistantAgent(AgentWorkflowBase):
             if final_output
             else "unknown",
         )
-        # TODO
-        logger.info(f"####### Message: {message}")
+
+        if message:
+            logger.info(
+                f"Message content: {message.get('content', 'err_extracting_content')}"
+            )
+
         workflow_entry: AssistantWorkflowEntry = self.state["instances"].get(
             instance_id
         )
@@ -691,14 +684,11 @@ class AssistantAgent(AgentWorkflowBase):
 
             # Extract metadata safely from message["_message_metadata"]
             metadata = message.get("_message_metadata", {})
-            # TODO
-            logger.info(f"##### metadata: {metadata}")
 
             if not isinstance(metadata, dict):
                 logger.warning(
                     f"{self.name} received a broadcast message with invalid metadata format. Ignoring."
                 )
-                span.end()
                 return
 
             source = metadata.get("source", "unknown_source")
@@ -714,7 +704,6 @@ class AssistantAgent(AgentWorkflowBase):
                 logger.info(
                     f"{self.name} ignored its own broadcast message of type '{message_type}'."
                 )
-                span.end()
                 return
 
             span.set_attribute("dapr_agents.message.sender", source)
@@ -739,8 +728,5 @@ class AssistantAgent(AgentWorkflowBase):
             # Store the message in local memory
             self.memory.add_message(message)
 
-            span.end()
-
         except Exception as e:
-            span.end()
             logger.error(f"Error processing broadcast message: {e}", exc_info=True)

@@ -172,6 +172,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         Returns:
             Union[Iterator[Dict[str, Any]], Dict[str, Any]]: The chat completion response(s).
         """
+        span = trace.get_current_span()
         if structured_mode not in self.SUPPORTED_STRUCTURED_MODES:
             raise ValueError(
                 f"Invalid structured_mode '{structured_mode}'. Must be one of {self.SUPPORTED_STRUCTURED_MODES}."
@@ -212,7 +213,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
             structured_mode=structured_mode,
         )
 
-        span = trace.get_current_span()
         span.set_attribute("gen_ai.operation.name", "chat")
         span.set_attribute("gen_ai.system", "openai")
         span.set_attribute("openai.model", params["model"])
@@ -232,6 +232,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
                     "gen_ai.request.model": params["model"],
                     "gen_ai.request.message_count": len(params["messages"]),
                 },
+                end_on_exit=True,
             ) as api_span:
                 response: ChatCompletionMessage = self.client.chat.completions.create(
                     **params, timeout=self.timeout

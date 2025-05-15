@@ -524,10 +524,8 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.error(f"Failed to save workflow state to disk: {e}")
             raise RuntimeError(f"Error saving workflow state to disk: {e}")
 
-    @span_decorator("save_state")
     def save_state(
         self,
-        otel_context: Union[Context, dict[str, str]],
         state: Optional[Union[dict, BaseModel, str]] = None,
         force_reload: bool = False,
     ) -> None:
@@ -567,6 +565,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             if not self.state:
                 # TODO: Add this error to span
                 logger.warning("Skipping state save: Empty state.")
+
                 return
 
             # Convert state to a JSON-compatible format
@@ -762,12 +761,10 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             )
 
             logger.debug(f"{self.name} sent message to agent '{name}'.")
-            span.end()
         except Exception as e:
             logger.error(
                 f"Failed to send message to agent '{name}': {e}", exc_info=True
             )
-            span.end()
 
     def print_interaction(
         self, sender_agent_name: str, recipient_agent_name: str, message: str

@@ -144,10 +144,8 @@ class AgentToolExecutor(BaseModel):
             logger.info(f"Running tool (auto): {tool_name}")
             if tool._is_async:
                 span.set_attribute("dapr_agents.tool.is_async", True)
-                span.end()
                 return await tool.arun(*args, **kwargs)
             span.set_attribute("dapr_agents.tool.is_async", False)
-            span.end()
             return tool(*args, **kwargs)
         except Exception as e:
             logger.error(f"Unexpected error in '{tool_name}': {e}")
@@ -161,8 +159,6 @@ class AgentToolExecutor(BaseModel):
                 logger.error(
                     f"Context cleanup during error handling failed: {cleanup_error}"
                 )
-
-            span.end()
 
             if isinstance(e, ToolError):
                 raise AgentToolExecutorError(str(e)) from e
