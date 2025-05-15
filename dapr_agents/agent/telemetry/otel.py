@@ -198,8 +198,7 @@ def async_span_decorator(name):
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
-                # Set the context here as context is either derived from otel_context or current context
-                kwargs["otel_context"] = context.get_current()
+                token = context.attach(otel_context)
 
                 try:
                     result = await func(self, *args, **kwargs)
@@ -207,8 +206,9 @@ def async_span_decorator(name):
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
-                    context.detach(context.attach(context.get_current()))
                     raise
+                finally:
+                    context.detach(token=token)
 
         return wrapper
 
@@ -236,8 +236,7 @@ def span_decorator(name):
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
-                # Set the context here as context is either derived from otel_context or current context
-                kwargs["otel_context"] = context.get_current()
+                token = context.attach(otel_context)
 
                 try:
                     result = func(self, *args, **kwargs)
@@ -245,8 +244,9 @@ def span_decorator(name):
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
-                    context.detach(context.attach(context.get_current()))
                     raise
+                finally:
+                    context.detach(token=token)
 
         return wrapper
 
