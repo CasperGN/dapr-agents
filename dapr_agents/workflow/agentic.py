@@ -117,8 +117,9 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         """Initializes the workflow service, messaging, and metadata storage."""
 
         try:
+            # TODO: panic if APP_ID not set AND OTEL enabled
             otel_client = DaprAgentsOTel(
-                service_name=os.getenv("HOSTNAME", "default-agent-name"),
+                service_name=os.getenv("APP_ID", self.name),
                 otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
             )
             provider = otel_client.create_and_instrument_tracer_provider()
