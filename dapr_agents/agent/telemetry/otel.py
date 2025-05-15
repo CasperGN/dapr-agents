@@ -198,6 +198,8 @@ def async_span_decorator(name):
             ) as span:
                 span.set_attribute("function.name", func.__name__)
 
+                kwargs["otel_contex"] = otel_context
+
                 token = context.attach(otel_context)
 
                 try:
@@ -235,6 +237,8 @@ def span_decorator(name):
                 name, context=otel_context, end_on_exit=True
             ) as span:
                 span.set_attribute("function.name", func.__name__)
+
+                kwargs["otel_contex"] = otel_context
 
                 token = context.attach(otel_context)
 
