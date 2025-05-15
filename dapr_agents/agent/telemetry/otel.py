@@ -207,7 +207,7 @@ def async_span_decorator(name):
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
-                    context.attach(context.Context())
+                    context.detach(context.attach(context.get_current()))
                     raise
 
         return wrapper
@@ -245,7 +245,7 @@ def span_decorator(name):
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
-                    context.attach(context.Context())
+                    context.detach(context.attach(context.get_current()))
                     raise
 
         return wrapper
