@@ -110,9 +110,9 @@ class AssistantAgent(AgentWorkflowBase):
         instance_id = ctx.instance_id
 
         if task:
-            span.set_attribute("workflow.task_size", len(task))
-        span.set_attribute("workflow.id", instance_id)
-        span.set_attribute("workflow.iteration", iteration)
+            span.set_attribute("dapr_agents.workflow.task.size", len(task))
+        span.set_attribute("dapr_agents.workflow.id", instance_id)
+        span.set_attribute("dapr_agents.workflow.iteration", iteration)
 
         if not ctx.is_replaying:
             logger.info(
@@ -187,9 +187,6 @@ class AssistantAgent(AgentWorkflowBase):
                 self.get_tool_calls,
                 input={"response": response, "otel_context": otel_context},
             )
-            span.add_event(
-                "tool_calls_detected", {"count": len(tool_calls) if tool_calls else 0}
-            )
 
             # Execute tool calls in parallel
             if not ctx.is_replaying:
@@ -210,12 +207,15 @@ class AssistantAgent(AgentWorkflowBase):
                 with self._tracer.start_as_current_span(
                     "parallel_tool_execution"
                 ) as parallel_span:
-                    parallel_span.set_attribute("tool_calls.count", len(tool_calls))
+                    parallel_span.set_attribute(
+                        "dapr_agents.tool.calls", len(tool_calls)
+                    )
                     yield self.when_all(parallel_tasks)
             else:
                 # Fall back if no tracer is available
                 span.add_event(
-                    "parallel_tool_execution", {"tool_calls.count": len(tool_calls)}
+                    "parallel_tool_execution",
+                    {"dapr_agents.tool.calls": len(tool_calls)},
                 )
                 yield self.when_all(parallel_tasks)
         else:
@@ -283,7 +283,7 @@ class AssistantAgent(AgentWorkflowBase):
                 logger.info(
                     f"Workflow {instance_id} has been finalized with verdict: {verdict}"
                 )
-
+            span.end()
             return response_message
 
         else:
@@ -450,12 +450,11 @@ class AssistantAgent(AgentWorkflowBase):
         """
 
         span = trace.get_current_span()
-        span.set_attribute("workflow.id", instance_id)
+        span.set_attribute("dapr_agents.workflow.id", instance_id)
 
         function_details = tool_call.get("function", {})
         function_name = function_details.get("name")
-        span.set_attribute("tool.call.name", function_name)
-        span.set_attribute("tool.call.details", str(function_details))
+        span.set_attribute("dapr_agents.tool.name", function_name)
 
         if not function_name:
             raise AgentError("Missing function name in tool execution request.")
@@ -463,7 +462,8 @@ class AssistantAgent(AgentWorkflowBase):
         try:
             function_args = function_details.get("arguments", "")
             function_args_as_dict = json.loads(function_args) if function_args else {}
-            span.set_attribute("tool.call.args", str(function_args_as_dict))
+            for argument, parameter in function_args_as_dict.items():
+                span.set_attribute(f"dapr_agents.tool.arg.{argument}", parameter)
 
             # Execute tool function
             result = await self.tool_executor.run_tool(
@@ -508,7 +508,7 @@ class AssistantAgent(AgentWorkflowBase):
 
         except Exception as e:
             logger.error(f"Error executing tool '{function_name}': {e}", exc_info=True)
-            span.set_attribute("error.type", type(e).__name__)
+            span.set_attribute("dapr_agents.error.type", type(e).__name__)
             raise AgentError(f"Error executing tool '{function_name}': {e}") from e
 
     @task
@@ -612,9 +612,9 @@ class AssistantAgent(AgentWorkflowBase):
             ValueError: If no workflow entry is found for the given instance_id.
         """
         span = trace.get_current_span()
-        span.set_attribute("workflow.id", instance_id)
+        span.set_attribute("dapr_agents.workflow.id", instance_id)
         span.set_attribute(
-            "update.type",
+            "dapr_agents.update.type",
             "message"
             if message
             else "tool_message"
@@ -623,6 +623,8 @@ class AssistantAgent(AgentWorkflowBase):
             if final_output
             else "unknown",
         )
+        # TODO
+        logger.info(f"####### Message: {message}")
         workflow_entry: AssistantWorkflowEntry = self.state["instances"].get(
             instance_id
         )

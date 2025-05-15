@@ -157,22 +157,14 @@ class AgentTool(BaseModel):
         except Exception as e:
             self._log_and_raise_error(e)
 
-    @async_span_decorator("arun")
-    async def arun(
-        self, otel_context: Union[Context, dict[str, str]], *args, **kwargs
-    ) -> Any:
+    async def arun(self, *args, **kwargs) -> Any:
         """
         Execute the tool asynchronously (whether it's sync or async under the hood).
         """
-        logger.info(f"Otel context: {otel_context}")
         try:
-            with self._tracer.start_as_current_span(
-                name="arun_tool", context=otel_context
-            ) as span:
-                span.set_attribute("tool.name", self.name)
-                func = self.func or self._run
-                kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
-                return await func(**kwargs) if self._is_async else func(**kwargs)
+            func = self.func or self._run
+            kwargs = self._validate_and_prepare_args(func, *args, **kwargs)
+            return await func(**kwargs) if self._is_async else func(**kwargs)
         except Exception as e:
             self._log_and_raise_error(e)
 

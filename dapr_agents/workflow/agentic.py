@@ -556,6 +556,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 or not self.state_store_name
                 or not self.state_key
             ):
+                # TODO: Add this error to span
                 logger.error("State store is not configured. Cannot save state.")
                 raise RuntimeError(
                     "State store is not configured. Please provide 'state_store_name' and 'state_key'."
@@ -564,6 +565,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             # Update self.state with the new state if provided
             self.state = state or self.state
             if not self.state:
+                # TODO: Add this error to span
                 logger.warning("Skipping state save: Empty state.")
                 return
 
@@ -576,13 +578,17 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 try:
                     json.loads(self.state)  # Ensure the string is valid JSON
                 except json.JSONDecodeError as e:
+                    # TODO: Add this error to span
                     raise ValueError(f"Invalid JSON string provided as state: {e}")
                 state_to_save = self.state
             else:
+                # TODO: Add this error to span
                 raise TypeError(
                     f"Invalid state type: {type(self.state)}. Expected dict, BaseModel, or JSON string."
                 )
 
+            # TODO:
+            logger.info(f"##### State to store: {state_to_save}")
             # Save state in Dapr
             self._state_store_client.save_state(self.state_key, state_to_save)
             logger.debug(f"Successfully saved state for key '{self.state_key}'.")
@@ -597,6 +603,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 logger.debug(f"State reloaded after saving for key '{self.state_key}'.")
 
         except Exception as e:
+            # TODO: Add this error to span
             logger.error(f"Failed to save state for key '{self.state_key}': {e}")
             raise
 

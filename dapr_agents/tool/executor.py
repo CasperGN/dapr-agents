@@ -132,19 +132,22 @@ class AgentToolExecutor(BaseModel):
             AgentToolExecutorError: If the tool is not found or execution fails.
         """
         span = trace.get_current_span()
-        span.set_attribute("tool.name", tool_name)
+        span.set_attribute("dapr_agents.tool.name", tool_name)
 
         tool = self.get_tool(tool_name)
         if not tool:
             logger.error(f"Tool not found: {tool_name}")
             span.set_status(Status(StatusCode.ERROR))
-            span.set_attribute("error.type", "tool_not_found")
+            span.set_attribute("dapr_agents.error.type", "tool_not_found")
             raise AgentToolExecutorError(f"Tool '{tool_name}' not found.")
         try:
             logger.info(f"Running tool (auto): {tool_name}")
-            logger.info(f"Otel context: {otel_context}")
             if tool._is_async:
-                return await tool.arun(otel_context=otel_context, *args, **kwargs)
+                span.set_attribute("dapr_agents.tool.is_async", True)
+                span.end()
+                return await tool.arun(*args, **kwargs)
+            span.set_attribute("dapr_agents.tool.is_async", False)
+            span.end()
             return tool(*args, **kwargs)
         except Exception as e:
             logger.error(f"Unexpected error in '{tool_name}': {e}")
@@ -158,6 +161,8 @@ class AgentToolExecutor(BaseModel):
                 logger.error(
                     f"Context cleanup during error handling failed: {cleanup_error}"
                 )
+
+            span.end()
 
             if isinstance(e, ToolError):
                 raise AgentToolExecutorError(str(e)) from e
