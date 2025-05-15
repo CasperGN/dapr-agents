@@ -152,14 +152,6 @@ class AgentToolExecutor(BaseModel):
             span.set_status(Status(StatusCode.ERROR))
             span.record_exception(e)
 
-            # Clean up context before propagating error
-            try:
-                context.attach(context.Context())
-            except Exception as cleanup_error:
-                logger.error(
-                    f"Context cleanup during error handling failed: {cleanup_error}"
-                )
-
             if isinstance(e, ToolError):
                 raise AgentToolExecutorError(str(e)) from e
             else:
