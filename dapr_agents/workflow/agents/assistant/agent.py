@@ -91,12 +91,10 @@ class AssistantAgent(AgentWorkflowBase):
 
     @message_router
     @workflow(name="ToolCallingWorkflow")
-    @span_decorator("exec_tool_calling_wf")
     def tool_calling_workflow(
         self,
         ctx: DaprWorkflowContext,
         message: TriggerAction,
-        otel_context: Union[Context, dict[str, str]],
     ):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).
@@ -152,8 +150,7 @@ class AssistantAgent(AgentWorkflowBase):
         source = workflow_entry["source"]
         source_workflow_instance_id = workflow_entry["source_workflow_instance_id"]
 
-        if isinstance(otel_context, Context):
-            otel_context = extract_otel_context()
+        otel_context = extract_otel_context()
 
         # Step 3: Generate Response
         response = yield ctx.call_activity(
