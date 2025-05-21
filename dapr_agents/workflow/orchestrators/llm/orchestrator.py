@@ -260,7 +260,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 },
             )
             # TODO
-            logger.info(f"plan: {plan}, step: {step_id}, substep: {substep_id}, results: {task_results['content']}, progress_check_schema: {schemas.progress_check}")
+            logger.info(
+                f"plan: {plan}, step: {step_id}, substep: {substep_id}, results: {task_results['content']}, progress_check_schema: {schemas.progress_check}"
+            )
 
             # Step 10: Check progress
             progress = yield ctx.call_activity(
