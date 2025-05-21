@@ -200,17 +200,20 @@ def async_span_decorator(name):
 
                 kwargs["otel_context"] = otel_context
 
-                token = context.attach(otel_context)
+                context.attach(otel_context)
 
                 try:
                     result = await func(self, *args, **kwargs)
                     return result
+                except ValueError as e:
+                    # suppress the error
+                    # ValueError: <Token var=<ContextVar name='current_context' default={} at 0x..> at 0x..> was created in a different Context
+                    logger.info(f"Suppressing ValueError: {e}")
+                    pass
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
                     raise
-                finally:
-                    context.detach(token=token)
 
         return wrapper
 
@@ -240,17 +243,20 @@ def span_decorator(name):
 
                 kwargs["otel_context"] = otel_context
 
-                token = context.attach(otel_context)
+                context.attach(otel_context)
 
                 try:
                     result = func(self, *args, **kwargs)
                     return result
+                except ValueError as e:
+                    # suppress the error
+                    # ValueError: <Token var=<ContextVar name='current_context' default={} at 0x..> at 0x..> was created in a different Context
+                    logger.info(f"Suppressing ValueError: {e}")
+                    pass
                 except Exception as e:
                     span.set_status(Status(StatusCode.ERROR))
                     span.record_exception(e)
                     raise
-                finally:
-                    context.detach(token=token)
 
         return wrapper
 
