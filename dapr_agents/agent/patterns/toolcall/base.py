@@ -153,7 +153,8 @@ class ToolCallAgent(AgentBase):
             AgentError: If the tool is not found or execution fails.
         """
         try:
-            return await self.tool_executor.run_tool(tool_name, *args, **kwargs)
+            otel_context = extract_otel_context()
+            return await self.tool_executor.run_tool(tool_name=tool_name, otel_context=otel_context, *args, **kwargs)
         except Exception as e:
             logger.error(f"Agent failed to run tool '{tool_name}': {e}")
             raise AgentError(f"Failed to run tool '{tool_name}': {e}") from e
