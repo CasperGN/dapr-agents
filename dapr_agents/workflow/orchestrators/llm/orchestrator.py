@@ -652,7 +652,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         results: str,
         progress_check_schema: str,
-        otel_context: Dict[str, Any]
+        otel_context: Dict[str, Any],
     ) -> ProgressCheckOutput:
         """
         Evaluates the current plan's progress and determines necessary updates.
