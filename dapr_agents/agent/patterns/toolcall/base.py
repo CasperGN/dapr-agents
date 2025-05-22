@@ -154,7 +154,9 @@ class ToolCallAgent(AgentBase):
         """
         try:
             otel_context = extract_otel_context()
-            return await self.tool_executor.run_tool(tool_name=tool_name, otel_context=otel_context, *args, **kwargs)
+            return await self.tool_executor.run_tool(
+                tool_name=tool_name, otel_context=otel_context, *args, **kwargs
+            )
         except Exception as e:
             logger.error(f"Agent failed to run tool '{tool_name}': {e}")
             raise AgentError(f"Failed to run tool '{tool_name}': {e}") from e
