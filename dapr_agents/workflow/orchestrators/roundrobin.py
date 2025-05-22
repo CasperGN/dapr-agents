@@ -53,7 +53,7 @@ class RoundRobinOrchestrator(OrchestratorWorkflowBase):
         super().model_post_init(__context)
 
     @workflow(name="RoundRobinWorkflow")
-    def main_workflow(self, ctx: DaprWorkflowContext, input: TriggerAction):
+    def main_workflow(self, ctx: DaprWorkflowContext, input: TriggerAction, otel_context: Dict[str, Any]):
         """
         Executes a round-robin workflow where agents interact iteratively.
 
@@ -135,7 +135,7 @@ class RoundRobinOrchestrator(OrchestratorWorkflowBase):
         ctx.continue_as_new(input)
 
     @task
-    async def process_input(self, task: str) -> Dict[str, Any]:
+    async def process_input(self, task: str, otel_context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Processes the input message for the workflow.
 
@@ -147,7 +147,7 @@ class RoundRobinOrchestrator(OrchestratorWorkflowBase):
         return {"role": "user", "name": self.name, "content": task}
 
     @task
-    async def broadcast_message_to_agents(self, message: Dict[str, Any]):
+    async def broadcast_message_to_agents(self, message: Dict[str, Any], otel_context: Dict[str, Any]):
         """
         Broadcasts a message to all agents.
 
@@ -159,7 +159,7 @@ class RoundRobinOrchestrator(OrchestratorWorkflowBase):
         )
 
     @task
-    async def select_next_speaker(self, iteration: int) -> str:
+    async def select_next_speaker(self, iteration: int, otel_context: Dict[str, Any]) -> str:
         """
         Selects the next speaker in round-robin order.
 
@@ -183,7 +183,7 @@ class RoundRobinOrchestrator(OrchestratorWorkflowBase):
         return next_speaker
 
     @task
-    async def trigger_agent(self, name: str, instance_id: str) -> None:
+    async def trigger_agent(self, name: str, instance_id: str, otel_context: Dict[str, Any]) -> None:
         """
         Triggers the specified agent to perform its activity.
 

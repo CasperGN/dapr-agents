@@ -60,7 +60,7 @@ class RandomOrchestrator(OrchestratorWorkflowBase):
         super().model_post_init(__context)
 
     @workflow(name="RandomWorkflow")
-    def main_workflow(self, ctx: DaprWorkflowContext, input: TriggerAction):
+    def main_workflow(self, ctx: DaprWorkflowContext, input: TriggerAction, otel_context: Dict[str, Any]):
         """
         Executes a random workflow where agents are selected randomly for interactions.
         Uses `continue_as_new` to persist iteration state.
@@ -137,7 +137,7 @@ class RandomOrchestrator(OrchestratorWorkflowBase):
         ctx.continue_as_new(input)
 
     @task
-    async def process_input(self, task: str):
+    async def process_input(self, task: str, otel_context: Dict[str, Any]):
         """
         Processes the input message for the workflow.
 
@@ -149,7 +149,7 @@ class RandomOrchestrator(OrchestratorWorkflowBase):
         return {"role": "user", "name": self.name, "content": task}
 
     @task
-    async def broadcast_message_to_agents(self, message: Dict[str, Any]):
+    async def broadcast_message_to_agents(self, message: Dict[str, Any], otel_context: Dict[str, Any]):
         """
         Broadcasts a message to all agents.
 
@@ -161,7 +161,7 @@ class RandomOrchestrator(OrchestratorWorkflowBase):
         )
 
     @task
-    def select_random_speaker(self, iteration: int) -> str:
+    def select_random_speaker(self, iteration: int, otel_context: Dict[str, Any]) -> str:
         """
         Selects a random speaker, ensuring that a different agent is chosen if possible.
 
@@ -200,7 +200,7 @@ class RandomOrchestrator(OrchestratorWorkflowBase):
         return random_speaker
 
     @task
-    async def trigger_agent(self, name: str, instance_id: str) -> None:
+    async def trigger_agent(self, name: str, instance_id: str, otel_context: Dict[str, Any]) -> None:
         """
         Triggers the specified agent to perform its activity.
 

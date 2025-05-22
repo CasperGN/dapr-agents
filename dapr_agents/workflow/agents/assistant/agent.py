@@ -347,7 +347,7 @@ class AssistantAgent(AgentWorkflowBase):
         return response.model_dump()
 
     @task
-    def get_response_message(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    def get_response_message(self, response: Dict[str, Any], otel_context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extracts the response message from the first choice in the LLM response.
 
@@ -364,7 +364,7 @@ class AssistantAgent(AgentWorkflowBase):
         return response_message
 
     @task
-    def get_finish_reason(self, response: Dict[str, Any]) -> str:
+    def get_finish_reason(self, response: Dict[str, Any], otel_context: Dict[str, Any]) -> str:
         """
         Extracts the finish reason from the LLM response, indicating why generation stopped.
 
@@ -394,7 +394,7 @@ class AssistantAgent(AgentWorkflowBase):
 
     @task
     def get_tool_calls(
-        self, response: Dict[str, Any]
+        self, response: Dict[str, Any], otel_context: Dict[str, Any]
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Extracts tool calls from the first choice in the LLM response, if available.

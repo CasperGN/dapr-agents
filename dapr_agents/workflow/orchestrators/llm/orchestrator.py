@@ -358,7 +358,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         ctx.continue_as_new(message)
 
     @task
-    def get_agents_metadata_as_string(self) -> str:
+    def get_agents_metadata_as_string(self, otel_context: Dict[str, Any]) -> str:
         """
         Retrieves and formats metadata about available agents.
 
@@ -652,6 +652,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         substep: Optional[float],
         results: str,
         progress_check_schema: str,
+        otel_context: Dict[str, Any]
     ) -> ProgressCheckOutput:
         """
         Evaluates the current plan's progress and determines necessary updates.
