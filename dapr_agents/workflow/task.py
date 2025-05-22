@@ -104,11 +104,14 @@ class WorkflowTask(BaseModel):
         logger.info(f"Executing task '{self.func.__name__}'")
         logger.debug(f"Executing task '{self.func.__name__}' with input {data!r}")
 
+        data["otel_context"] = extract_otel_context()
+
         try:
             executor = self._choose_executor()
             if executor in ("agent", "llm"):
                 if not self.description:
                     raise ValueError("LLM/agent tasks require a description template")
+
                 prompt = self.format_description(self.description, data)
                 raw = await self._run_via_ai(prompt, executor)
             else:
