@@ -82,8 +82,11 @@ class ToolCallAgent(AgentBase):
                 logger.info(
                     f"Executing {function_name} with arguments {tool.function.arguments}"
                 )
+                otel_context = extract_otel_context()
                 result = await self.tool_executor.run_tool(
-                    function_name, **tool.function.arguments_dict
+                    tool_name=function_name,
+                    otel_context=otel_context,
+                    **tool.function.arguments_dict,
                 )
                 tool_message = ToolMessage(
                     tool_call_id=tool.id, name=function_name, content=str(result)
