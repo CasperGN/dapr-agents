@@ -1,3 +1,4 @@
+from dapr_agents.agent.telemetry.otel import extract_otel_context
 from dapr_agents.types import AgentError, AssistantMessage, ChatCompletion, ToolMessage
 from dapr_agents.agent import AgentBase
 from typing import List, Optional, Dict, Any, Union
@@ -111,11 +112,14 @@ class ToolCallAgent(AgentBase):
 
             messages += self.tool_history
 
+            otel_context = extract_otel_context()
+
             try:
                 response: ChatCompletion = self.llm.generate(
                     messages=messages,
                     tools=self.tools,
                     tool_choice=self.tool_choice,
+                    otel_context=otel_context,
                 )
                 response_message = response.get_message()
                 self.text_formatter.print_message(response_message)
