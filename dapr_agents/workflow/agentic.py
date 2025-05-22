@@ -36,8 +36,6 @@ from dapr_agents.storage.daprstores.statestore import DaprStateStore
 from dapr_agents.workflow import WorkflowApp
 from opentelemetry.sdk.trace import Tracer
 from dapr_agents.agent.telemetry import (
-    async_span_decorator,
-    span_decorator,
     restore_otel_context,
 )
 from opentelemetry import trace
@@ -663,7 +661,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             logger.error(f"Failed to retrieve agents metadata: {e}", exc_info=True)
             raise RuntimeError(f"Error retrieving agents metadata: {str(e)}") from e
 
-    @async_span_decorator("broadcast_message")
     async def broadcast_message(
         self,
         message: Union[BaseModel, dict],
@@ -711,7 +708,6 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
         except Exception as e:
             logger.error(f"Failed to broadcast message: {e}", exc_info=True)
 
-    @async_span_decorator("send_message_to_agent")
     async def send_message_to_agent(
         self,
         name: str,

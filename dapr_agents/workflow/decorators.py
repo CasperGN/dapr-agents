@@ -7,6 +7,9 @@ from pydantic import BaseModel, ValidationError
 
 from dapr.ext.workflow import DaprWorkflowContext
 
+from opentelemetry import context
+from opentelemetry.trace import Status, StatusCode
+
 
 def route(path: str, method: str = "GET", **kwargs):
     """
@@ -84,8 +87,38 @@ def task(
         # wrap it so we can log, validate, etc., without losing signature/docs
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
-            logging.getLogger(__name__).debug(f"Calling task '{f._task_name}'")
-            return f(*args, **kwargs)
+            # OpenTelemetry integration
+            otel_context = kwargs.get("otel_context", None)
+            if not otel_context:
+                otel_context = context.get_current()
+                kwargs["otel_context"] = otel_context
+
+            # Get tracer if available
+            self_obj = args[0] if args else None
+            tracer = getattr(self_obj, "_tracer", None)
+
+            if tracer:
+                with tracer.start_as_current_span(
+                    f"task_{f._task_name}", context=otel_context, end_on_exit=True
+                ) as span:
+                    span.set_attribute("function.name", f.__name__)
+                    span.set_attribute("task.name", f._task_name)
+
+                    try:
+                        logging.getLogger(__name__).debug(
+                            f"Calling task '{f._task_name}' with tracing."
+                        )
+                        return f(*args, **kwargs)
+                    except Exception as e:
+                        span.set_status(Status(StatusCode.ERROR))
+                        span.record_exception(e)
+                        raise
+            else:
+                # No tracer available, execute without tracing
+                logging.getLogger(__name__).debug(
+                    f"Calling task '{f._task_name}' without tracing."
+                )
+                return f(*args, **kwargs)
 
         # copy our metadata onto the wrapper so discovery still sees it
         for attr in (
@@ -185,6 +218,16 @@ def workflow(
 
             logging.getLogger(__name__).info(f"Starting workflow '{f._workflow_name}'")
 
+            # OpenTelemetry integration
+            otel_context = kwargs.get("otel_context", None)
+            if not otel_context:
+                otel_context = context.get_current()
+                kwargs["otel_context"] = otel_context
+
+            # Get tracer if available
+            self_obj = args[0] if args else None
+            tracer = getattr(self_obj, "_tracer", None)
+
             bound_args = sig.bind_partial(*args, **kwargs)
             bound_args.apply_defaults()
 
@@ -228,7 +271,23 @@ def workflow(
                 # Overwrite the function argument with the modified dictionary
                 bound_args.arguments[input_param.name] = validated_dict
 
-            return f(*bound_args.args, **bound_args.kwargs)
+            if tracer:
+                with tracer.start_as_current_span(
+                    f"workflow_{f._workflow_name}",
+                    context=otel_context,
+                    end_on_exit=True,
+                ) as span:
+                    span.set_attribute("workflow.name", f._workflow_name)
+
+                    try:
+                        return f(*bound_args.args, **bound_args.kwargs)
+                    except Exception as e:
+                        span.set_status(Status(StatusCode.ERROR))
+                        span.record_exception(e)
+                        raise
+            else:
+                # No tracer available, execute without tracing
+                return f(*bound_args.args, **bound_args.kwargs)
 
         wrapper._is_workflow = True
         wrapper._workflow_name = f._workflow_name

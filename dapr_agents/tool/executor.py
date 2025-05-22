@@ -8,10 +8,6 @@ from dapr_agents.agent.telemetry.otel import restore_otel_context
 from dapr_agents.tool import AgentTool
 from dapr_agents.types import AgentToolExecutorError, ToolError
 
-from dapr_agents.agent.telemetry import (
-    async_span_decorator,
-)
-
 from opentelemetry import trace, context
 from opentelemetry.context import Context
 from opentelemetry.trace import Tracer, Status, StatusCode
@@ -109,7 +105,6 @@ class AgentToolExecutor(BaseModel):
             for tool in self._tools_map.values()
         )
 
-    @async_span_decorator("run_tool")
     async def run_tool(
         self,
         tool_name: str,

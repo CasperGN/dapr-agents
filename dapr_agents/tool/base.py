@@ -9,7 +9,6 @@ from dapr_agents.tool.utils.tool import ToolHelper
 from dapr_agents.tool.utils.function_calling import to_function_call_definition
 from dapr_agents.types import ToolError
 
-from dapr_agents.agent.telemetry import async_span_decorator
 from opentelemetry import trace
 from opentelemetry.context import Context
 

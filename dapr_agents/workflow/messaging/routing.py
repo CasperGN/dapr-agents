@@ -19,9 +19,6 @@ from opentelemetry.context import Context
 from dapr_agents.workflow.messaging.utils import is_valid_routable_model
 from dapr_agents.workflow.utils import get_decorated_methods
 from opentelemetry import trace
-from dapr_agents.agent.telemetry import (
-    async_span_decorator,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -250,7 +247,6 @@ class MessageRoutingMixin:
             logger.error(f"Unexpected error during message routing: {e}", exc_info=True)
             return TopicEventResponse("retry")
 
-    @async_span_decorator("process_message_with_context")
     async def _process_message_with_context(
         self,
         handler_map: dict,

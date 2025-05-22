@@ -6,9 +6,6 @@ from pydantic import Field, model_validator
 import logging
 
 from pydantic import PrivateAttr
-from dapr_agents.agent.telemetry import (
-    span_decorator,
-)
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
@@ -84,7 +81,6 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
         self._api = "embeddings"
         return super().model_post_init(__context)
 
-    @span_decorator("create_embedding")
     def create_embedding(
         self,
         input: Union[str, List[Union[str, List[int]]]],

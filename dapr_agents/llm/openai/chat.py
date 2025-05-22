@@ -26,7 +26,6 @@ import logging
 
 from pydantic import PrivateAttr
 from dapr_agents.agent.telemetry import (
-    span_decorator,
     restore_otel_context,
 )
 
@@ -140,7 +139,6 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
                 f"Unsupported model configuration type: {type(model_config.configuration)}"
             )
 
-    @span_decorator("generate_chat")
     def generate(
         self,
         otel_context: Union[Context, dict[str, str]],

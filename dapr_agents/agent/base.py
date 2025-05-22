@@ -19,7 +19,6 @@ import logging
 
 from dapr_agents.agent.telemetry import (
     DaprAgentsOTel,
-    span_decorator,
 )
 
 from opentelemetry.context import Context

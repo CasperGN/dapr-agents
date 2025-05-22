@@ -37,10 +37,6 @@ from dapr_agents.workflow.orchestrators.llm.utils import (
 )
 
 from pydantic import PrivateAttr
-from dapr_agents.agent.telemetry import (
-    async_span_decorator,
-    span_decorator,
-)
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
@@ -85,7 +81,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
     @message_router
     @workflow(name="LLMWorkflow")
-    @span_decorator("main_workflow")
     def main_workflow(
         self,
         ctx: DaprWorkflowContext,
@@ -385,7 +380,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         return agent_list
 
     @task(description=TASK_PLANNING_PROMPT)
-    @async_span_decorator("generate_plan")
     async def generate_plan(
         self,
         task: str,
@@ -407,7 +401,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         pass
 
     @task
-    @async_span_decorator("prepare_init_msg")
     async def prepare_initial_message(
         self,
         instance_id: str,
@@ -442,7 +435,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         return formatted_message
 
     @task
-    @async_span_decorator("broadcast_msg_to_agents")
     async def broadcast_message_to_agents(
         self,
         instance_id: str,
@@ -479,7 +471,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         )
 
     @task(description=NEXT_STEP_PROMPT, include_chat_history=True)
-    @async_span_decorator("generate_next_step")
     async def generate_next_step(
         self,
         task: str,
@@ -503,7 +494,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         pass
 
     @task
-    @async_span_decorator("validate_next_step")
     async def validate_next_step(
         self,
         instance_id: str,
@@ -533,7 +523,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         return True
 
     @task
-    @async_span_decorator("trigger_agent")
     async def trigger_agent(
         self,
         instance_id: str,
@@ -599,7 +588,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         return updated_plan
 
     @task
-    @async_span_decorator("update_task_history")
     async def update_task_history(
         self,
         instance_id: str,
@@ -682,7 +670,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         pass
 
     @task
-    @async_span_decorator("update_plan")
     async def update_plan(
         self,
         instance_id: str,
@@ -743,7 +730,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         logger.info(f"Plan successfully updated for instance {instance_id}")
 
     @task(description=SUMMARY_GENERATION_PROMPT, include_chat_history=True)
-    @async_span_decorator("generate_summary")
     async def generate_summary(
         self,
         task: str,
@@ -773,7 +759,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         pass
 
     @task
-    @async_span_decorator("finish_workload")
     async def finish_workflow(
         self,
         instance_id: str,
@@ -848,7 +833,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             instance_id=instance_id, final_output=summary, otel_context=otel_context
         )
 
-    @async_span_decorator("update_workflow_state")
     async def update_workflow_state(
         self,
         instance_id: str,
@@ -896,7 +880,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         self.save_state()
 
     @message_router
-    @async_span_decorator("process_agent_response")
     async def process_agent_response(
         self,
         message: AgentTaskResponse,

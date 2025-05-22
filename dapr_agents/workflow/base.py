@@ -32,9 +32,6 @@ from dapr_agents.workflow.task import WorkflowTask
 from dapr_agents.workflow.utils import get_decorated_methods
 
 from pydantic import PrivateAttr
-from dapr_agents.agent.telemetry import (
-    span_decorator,
-)
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
@@ -385,7 +382,6 @@ class WorkflowApp(BaseModel):
 
         return workflow_func
 
-    @span_decorator("run_workflow")
     def run_workflow(
         self,
         workflow: Union[str, Callable],
@@ -682,7 +678,6 @@ class WorkflowApp(BaseModel):
             )
             return None
 
-    @span_decorator("raise_workflow_event")
     def raise_workflow_event(
         self,
         instance_id: str,

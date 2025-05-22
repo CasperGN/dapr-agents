@@ -31,8 +31,6 @@ from dapr_agents.workflow.messaging.decorator import message_router
 
 from pydantic import PrivateAttr
 from dapr_agents.agent.telemetry import (
-    async_span_decorator,
-    span_decorator,
     extract_otel_context,
 )
 
@@ -91,7 +89,6 @@ class AssistantAgent(AgentWorkflowBase):
 
     @message_router
     @workflow(name="ToolCallingWorkflow")
-    @span_decorator("exec_tool_calling_wf")
     def tool_calling_workflow(
         self,
         ctx: DaprWorkflowContext,
@@ -301,7 +298,6 @@ class AssistantAgent(AgentWorkflowBase):
         ctx.continue_as_new(message)
 
     @task
-    @async_span_decorator("generate_response")
     async def generate_response(
         self,
         instance_id: str,
@@ -430,7 +426,6 @@ class AssistantAgent(AgentWorkflowBase):
         return tool_calls
 
     @task
-    @async_span_decorator("exec_tool")
     async def execute_tool(
         self,
         instance_id: str,
@@ -511,7 +506,6 @@ class AssistantAgent(AgentWorkflowBase):
             raise AgentError(f"Error executing tool '{function_name}': {e}") from e
 
     @task
-    @async_span_decorator("broadcast_msg_to_agents")
     async def broadcast_message_to_agents(
         self, message: Dict[str, Any], otel_context: Dict[str, Any] = None
     ):
@@ -532,7 +526,6 @@ class AssistantAgent(AgentWorkflowBase):
         )
 
     @task
-    @async_span_decorator("respond_to_agent")
     async def send_response_back(
         self,
         response: Dict[str, Any],
@@ -563,7 +556,6 @@ class AssistantAgent(AgentWorkflowBase):
         )
 
     @task
-    @async_span_decorator("finish_workflow")
     async def finish_workflow(
         self,
         instance_id: str,
@@ -589,7 +581,6 @@ class AssistantAgent(AgentWorkflowBase):
             otel_context=otel_context,
         )
 
-    @async_span_decorator("update_wf_state")
     async def update_workflow_state(
         self,
         instance_id: str,
@@ -671,7 +662,6 @@ class AssistantAgent(AgentWorkflowBase):
         self.save_state()
 
     @message_router(broadcast=True)
-    @async_span_decorator("process_broadcast_msg")
     async def process_broadcast_message(
         self, message: BroadcastMessage, otel_context: Dict[str, Any] = None
     ):
