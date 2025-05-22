@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from opentelemetry.context import Context
+
 
 class ChatClientBase(BaseModel, ABC):
     """
@@ -45,6 +47,7 @@ class ChatClientBase(BaseModel, ABC):
         messages: Union[
             str, Dict[str, Any], BaseModel, Iterable[Union[Dict[str, Any], BaseModel]]
         ] = None,
+        otel_context: Union[Context, dict[str, str]] = None,
         input_data: Optional[Dict[str, Any]] = None,
         model: Optional[str] = None,
         tools: Optional[List[Union[Dict[str, Any]]]] = None,

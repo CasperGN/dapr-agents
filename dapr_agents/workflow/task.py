@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from dapr.ext.workflow import WorkflowActivityContext
 
 from dapr_agents.agent.base import AgentBase
+from dapr_agents.agent.telemetry.otel import extract_otel_context
 from dapr_agents.llm.chat import ChatClientBase
 from dapr_agents.llm.openai import OpenAIChatClient
 from dapr_agents.llm.utils import StructureHandler
@@ -205,7 +206,10 @@ class WorkflowTask(BaseModel):
                 params["structured_mode"] = self.structured_mode
 
         logger.debug(f"LLM call params: {params}")
-        return self.llm.generate(**params)
+
+        otel_context = extract_otel_context()
+
+        return self.llm.generate(**params, otel_context=otel_context)
 
     def _normalize_input(self, raw_input: Any) -> dict:
         """
