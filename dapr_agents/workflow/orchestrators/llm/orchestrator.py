@@ -896,7 +896,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             None: The function raises a workflow event with the agent's response.
         """
         try:
-            span = span = trace.get_current_span(context=restore_otel_context(otel_context))
+            span = span = trace.get_current_span(
+                context=restore_otel_context(otel_context)
+            )
 
             workflow_instance_id = message.get("workflow_instance_id")
             span.set_attribute("dapr_agents.workflow.id", workflow_instance_id)
