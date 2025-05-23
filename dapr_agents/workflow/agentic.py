@@ -690,7 +690,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
                 f"{self.name} broadcasting message to {self.broadcast_topic_name}."
             )
 
-            span = trace.get_current_span()
+            span = trace.get_current_span(context=restore_otel_context(otel_context))
             span.set_attribute("message.destination", self.broadcast_topic_name)
             span.set_attribute("message.recipients_count", len(agents_metadata))
             span.set_attribute("message.type", type(message).__name__)
@@ -735,7 +735,7 @@ class AgenticWorkflow(WorkflowApp, DaprPubSub, MessageRoutingMixin):
             agent_metadata = agents_metadata[name]
             logger.info(f"{self.name} sending message to agent '{name}'.")
 
-            span = trace.get_current_span()
+            span = span = trace.get_current_span(context=restore_otel_context(otel_context))
             span.set_attribute(
                 "dapr_agents.message.receiver", agent_metadata["topic_name"]
             )

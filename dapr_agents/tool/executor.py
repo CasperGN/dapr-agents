@@ -126,7 +126,7 @@ class AgentToolExecutor(BaseModel):
         Raises:
             AgentToolExecutorError: If the tool is not found or execution fails.
         """
-        span = trace.get_current_span()
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("dapr_agents.tool.name", tool_name)
 
         tool = self.get_tool(tool_name)

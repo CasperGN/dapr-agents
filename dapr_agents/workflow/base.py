@@ -403,7 +403,7 @@ class WorkflowApp(BaseModel):
         """
         try:
             # TODO
-            # span = trace.get_current_span()
+            # span = span = trace.get_current_span(context=restore_otel_context(otel_context))
             # Start Workflow Runtime
             if not self.wf_runtime_is_running:
                 self.start_runtime()
@@ -699,7 +699,7 @@ class WorkflowApp(BaseModel):
         """
         try:
             # TODO
-            # span = trace.get_current_span()
+            # span = span = trace.get_current_span(context=restore_otel_context(otel_context))
             logger.info(
                 f"Raising workflow event '{event_name}' for instance '{instance_id}'"
             )

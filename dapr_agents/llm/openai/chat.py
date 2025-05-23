@@ -170,7 +170,7 @@ class OpenAIChatClient(OpenAIClientBase, ChatClientBase):
         Returns:
             Union[Iterator[Dict[str, Any]], Dict[str, Any]]: The chat completion response(s).
         """
-        span = trace.get_current_span()
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
         if structured_mode not in self.SUPPORTED_STRUCTURED_MODES:
             raise ValueError(
                 f"Invalid structured_mode '{structured_mode}'. Must be one of {self.SUPPORTED_STRUCTURED_MODES}."

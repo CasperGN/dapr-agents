@@ -100,7 +100,7 @@ class AssistantAgent(AgentWorkflowBase):
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).
         """
 
-        span = trace.get_current_span()
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
 
         # Step 0: Retrieve task and iteration input
         task = message.get("task")
@@ -313,7 +313,7 @@ class AssistantAgent(AgentWorkflowBase):
         """
 
         # TODO: Finish me!!
-        span = trace.get_current_span()
+        span = span = trace.get_current_span(context=restore_otel_context(otel_context))
 
         # Construct prompt messages
         messages = self.construct_messages(task or {})
@@ -443,7 +443,7 @@ class AssistantAgent(AgentWorkflowBase):
             AgentError: If the tool call is malformed or execution fails.
         """
 
-        span = trace.get_current_span()
+        span = span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("dapr_agents.workflow.id", instance_id)
 
         function_details = tool_call.get("function", {})
@@ -601,7 +601,7 @@ class AssistantAgent(AgentWorkflowBase):
         Raises:
             ValueError: If no workflow entry is found for the given instance_id.
         """
-        span = trace.get_current_span()
+        span = span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("dapr_agents.workflow.id", instance_id)
         span.set_attribute(
             "dapr_agents.update.type",

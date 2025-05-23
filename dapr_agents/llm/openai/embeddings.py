@@ -1,5 +1,6 @@
 import os
 from openai.types.create_embedding_response import CreateEmbeddingResponse
+from dapr_agents.agent.telemetry.otel import restore_otel_context
 from dapr_agents.llm.openai.client.base import OpenAIClientBase
 from typing import Union, Dict, Any, Literal, List, Optional
 from pydantic import Field, model_validator
@@ -105,7 +106,7 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
         logger.info(f"Using model '{self.model}' for embedding generation.")
 
         # Add Semantic Conventions for GenAI
-        span = trace.get_current_span()
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("gen_ai.operation.name", "embeddings")
         span.set_attribute("gen_ai.system", "openai")
 
