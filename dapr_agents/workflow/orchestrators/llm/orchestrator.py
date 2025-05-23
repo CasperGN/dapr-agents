@@ -102,9 +102,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         Raises:
             RuntimeError: If the LLM determines the task is `failed`.
         """
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-        span = trace.get_current_span(context=otel_context)
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
 
         # Step 0: Retrieve iteration messages
         task = message.get("task")
@@ -425,12 +423,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             task=task, agents=agents, plan=plan
         )
 
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-
         # Save initial plan using update_workflow_state for consistency
         await self.update_workflow_state(
-            instance_id=instance_id, plan=plan, otel_context=otel_context
+            instance_id=instance_id, plan=plan, otel_context=restore_otel_context(otel_context)
         )
 
         # Return formatted prompt
@@ -454,14 +449,11 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         if not isinstance(task, str):
             raise ValueError("Message must be a string.")
 
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-
         # Store message in workflow state
         await self.update_workflow_state(
             instance_id=instance_id,
             message={"name": self.name, "role": "user", "content": task},
-            otel_context=otel_context,
+            otel_context=restore_otel_context(otel_context),
         )
 
         # Format message for broadcasting
@@ -572,12 +564,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         # Apply global status updates to maintain consistency
         updated_plan = update_step_statuses(plan)
 
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-
         # Save updated plan state
         await self.update_workflow_state(
-            instance_id=instance_id, plan=updated_plan, otel_context=otel_context
+            instance_id=instance_id, plan=updated_plan, otel_context=restore_otel_context(otel_context)
         )
 
         # Send message to agent
@@ -617,12 +606,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             f"Updating task history for {agent} at step {step}, substep {substep} (Instance ID: {instance_id})"
         )
 
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-
         # Store the agent's response in the message history
         await self.update_workflow_state(
-            instance_id=instance_id, message=results, otel_context=otel_context
+            instance_id=instance_id, message=results, otel_context=restore_otel_context(otel_context)
         )
 
         # Retrieve Workflow state
@@ -722,12 +708,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
         # Step 3: Apply global consistency checks for statuses
         plan = update_step_statuses(plan)
 
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-
         # Save to state and update workflow
         await self.update_workflow_state(
-            instance_id=instance_id, plan=plan, otel_context=otel_context
+            instance_id=instance_id, plan=plan, otel_context=restore_otel_context(otel_context)
         )
 
         logger.info(f"Plan successfully updated for instance {instance_id}")
@@ -817,10 +800,6 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 )
                 if all_substeps_completed:
                     parent_step["status"] = "completed"
-                    status_updates.append({"step": step, "status": "completed"})
-
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
 
         # Apply updates in one call
         if status_updates:
@@ -828,7 +807,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
                 instance_id=instance_id,
                 plan=plan,
                 status_updates=status_updates,
-                otel_context=otel_context,
+                otel_context=restore_otel_context(otel_context),
             )
 
         # Store the final summary and verdict in workflow state
@@ -898,9 +877,7 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
             None: The function raises a workflow event with the agent's response.
         """
         try:
-            if isinstance(otel_context, dict):
-                otel_context = restore_otel_context(otel_context)
-            span = span = trace.get_current_span(context=otel_context)
+            span = trace.get_current_span(context=restore_otel_context(otel_context))
 
             workflow_instance_id = message.get("workflow_instance_id")
             span.set_attribute("dapr_agents.workflow.id", workflow_instance_id)

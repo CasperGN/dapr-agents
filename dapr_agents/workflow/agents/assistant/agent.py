@@ -99,9 +99,8 @@ class AssistantAgent(AgentWorkflowBase):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).
         """
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-        span = trace.get_current_span(context=otel_context)
+
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
 
         # Step 0: Retrieve task and iteration input
         task = message.get("task")
@@ -314,9 +313,7 @@ class AssistantAgent(AgentWorkflowBase):
         """
 
         # TODO: Finish me!!
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-        span = span = trace.get_current_span(context=otel_context)
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
 
         # Construct prompt messages
         messages = self.construct_messages(task or {})
@@ -446,9 +443,7 @@ class AssistantAgent(AgentWorkflowBase):
             AgentError: If the tool call is malformed or execution fails.
         """
 
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-        span = span = trace.get_current_span(context=otel_context)
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("dapr_agents.workflow.id", instance_id)
 
         function_details = tool_call.get("function", {})
@@ -606,9 +601,7 @@ class AssistantAgent(AgentWorkflowBase):
         Raises:
             ValueError: If no workflow entry is found for the given instance_id.
         """
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-        span = span = trace.get_current_span(context=otel_context)
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("dapr_agents.workflow.id", instance_id)
         span.set_attribute(
             "dapr_agents.update.type",
@@ -702,8 +695,7 @@ class AssistantAgent(AgentWorkflowBase):
                 }
                 otel_context = restore_otel_context(ctx)
             else:
-                if isinstance(otel_context, dict):
-                    otel_context = restore_otel_context(otel_context)
+                otel_context = restore_otel_context(otel_context)
 
             span = trace.get_current_span(context=otel_context)
 

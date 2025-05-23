@@ -175,7 +175,7 @@ class DaprAgentsOTel:
 _propagator = TraceContextTextMapPropagator()
 
 
-def restore_otel_context(otel_context: dict[str, str]) -> Context:
+def restore_otel_context(otel_context: Union[Context, dict[str, str]]) -> Context:
     """
     Restore OpenTelemetry context from a previously extracted context dictionary.
     Creates a fresh context to avoid token errors across async boundaries.
@@ -186,6 +186,8 @@ def restore_otel_context(otel_context: dict[str, str]) -> Context:
     Returns:
         Context object that can be used with tracer.start_as_current_span()
     """
+    if isinstance(otel_context, Context):
+        return _propagator.extract(carrier=extract_otel_context())
     return _propagator.extract(carrier=otel_context)
 
 

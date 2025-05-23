@@ -106,9 +106,7 @@ class OpenAIEmbeddingClient(OpenAIClientBase):
         logger.info(f"Using model '{self.model}' for embedding generation.")
 
         # Add Semantic Conventions for GenAI
-        if isinstance(otel_context, dict):
-            otel_context = restore_otel_context(otel_context)
-        span = trace.get_current_span(context=otel_context)
+        span = trace.get_current_span(context=restore_otel_context(otel_context))
         span.set_attribute("gen_ai.operation.name", "embeddings")
         span.set_attribute("gen_ai.system", "openai")
 
