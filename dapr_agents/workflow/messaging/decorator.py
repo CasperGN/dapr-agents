@@ -62,8 +62,6 @@ def message_router(
                     context=otel_context,
                     end_on_exit=True,
                 ) as span:
-                    span.set_attribute("pubsub.name", pubsub)
-                    span.set_attribute("pubsub.topic", topic)
                     span.set_attribute("handler.name", f.__name__)
 
                     try:
