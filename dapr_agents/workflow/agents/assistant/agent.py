@@ -202,7 +202,8 @@ class AssistantAgent(AgentWorkflowBase):
             ]
             if self._tracer:
                 with self._tracer.start_as_current_span(
-                    "parallel_tool_execution"
+                    "parallel_tool_execution",
+                    context=otel_context,
                 ) as parallel_span:
                     parallel_span.set_attribute(
                         "dapr_agents.tool.calls", len(tool_calls)
