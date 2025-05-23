@@ -172,7 +172,9 @@ class AgentTool(BaseModel):
     ) -> Any:
         """Fallback default run logic if no `func` is set."""
         if self.func:
-            return self.func(otel_context=restore_otel_context(otel_context) *args, **kwargs)
+            return self.func(
+                otel_context=restore_otel_context(otel_context), *args, **kwargs
+            )
         raise NotImplementedError("No function or _run method defined for this tool.")
 
     def _log_and_raise_error(self, error: Exception) -> None:

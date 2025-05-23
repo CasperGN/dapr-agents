@@ -425,7 +425,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Save initial plan using update_workflow_state for consistency
         await self.update_workflow_state(
-            instance_id=instance_id, plan=plan, otel_context=restore_otel_context(otel_context)
+            instance_id=instance_id,
+            plan=plan,
+            otel_context=restore_otel_context(otel_context),
         )
 
         # Return formatted prompt
@@ -566,7 +568,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Save updated plan state
         await self.update_workflow_state(
-            instance_id=instance_id, plan=updated_plan, otel_context=restore_otel_context(otel_context)
+            instance_id=instance_id,
+            plan=updated_plan,
+            otel_context=restore_otel_context(otel_context),
         )
 
         # Send message to agent
@@ -608,7 +612,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Store the agent's response in the message history
         await self.update_workflow_state(
-            instance_id=instance_id, message=results, otel_context=restore_otel_context(otel_context)
+            instance_id=instance_id,
+            message=results,
+            otel_context=restore_otel_context(otel_context),
         )
 
         # Retrieve Workflow state
@@ -710,7 +716,9 @@ class LLMOrchestrator(OrchestratorWorkflowBase):
 
         # Save to state and update workflow
         await self.update_workflow_state(
-            instance_id=instance_id, plan=plan, otel_context=restore_otel_context(otel_context)
+            instance_id=instance_id,
+            plan=plan,
+            otel_context=restore_otel_context(otel_context),
         )
 
         logger.info(f"Plan successfully updated for instance {instance_id}")
