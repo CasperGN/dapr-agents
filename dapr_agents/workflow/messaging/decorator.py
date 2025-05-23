@@ -5,6 +5,9 @@ from dapr_agents.workflow.messaging.utils import (
     is_valid_routable_model,
     extract_message_models,
 )
+import functools
+from opentelemetry import context
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 
@@ -17,25 +20,7 @@ def message_router(
     dead_letter_topic: Optional[str] = None,
     broadcast: bool = False,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Decorator for registering message handlers by inspecting type hints on the 'message' argument.
-
-    This decorator:
-    - Extracts the expected message model type from function annotations.
-    - Stores metadata for routing messages by message schema instead of `event.type`.
-    - Supports broadcast messaging.
-    - Supports Union[...] and multiple models.
-
-    Args:
-        func (Optional[Callable]): The function to decorate.
-        pubsub (Optional[str]): The name of the pub/sub component.
-        topic (Optional[str]): The topic name for the handler.
-        dead_letter_topic (Optional[str]): Dead-letter topic for failed messages.
-        broadcast (bool): If True, the message is broadcast to all agents.
-
-    Returns:
-        Callable: The decorated function with additional metadata.
-    """
+    """Decorator for registering message handlers by inspecting type hints on the 'message' argument."""
 
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         is_workflow = hasattr(f, "_is_workflow")
@@ -61,9 +46,37 @@ def message_router(
             f"@message_router: '{f.__name__}' => models {[m.__name__ for m in message_models]}"
         )
 
-        # Attach metadata for later registration
-        f._is_message_handler = True
-        f._message_router_data = deepcopy(
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            otel_context = kwargs.get("otel_context", None)
+            if not otel_context:
+                otel_context = context.get_current()
+                kwargs["otel_context"] = otel_context
+
+            self_obj = args[0] if args else None
+            tracer = getattr(self_obj, "_tracer", None)
+
+            if tracer:
+                with tracer.start_as_current_span(
+                    f"message_handler_{f.__name__}",
+                    context=otel_context,
+                    end_on_exit=True,
+                ) as span:
+                    span.set_attribute("pubsub.name", pubsub)
+                    span.set_attribute("pubsub.topic", topic)
+                    span.set_attribute("handler.name", f.__name__)
+
+                    try:
+                        return f(*args, **kwargs)
+                    except Exception as e:
+                        span.set_status(Status(StatusCode.ERROR))
+                        span.record_exception(e)
+                        raise
+            else:
+                return f(*args, **kwargs)
+
+        wrapper._is_message_handler = True
+        wrapper._message_router_data = deepcopy(
             {
                 "pubsub": pubsub,
                 "topic": topic,
@@ -76,9 +89,9 @@ def message_router(
         )
 
         if is_workflow:
-            f._is_workflow = True
-            f._workflow_name = workflow_name
+            wrapper._is_workflow = True
+            wrapper._workflow_name = workflow_name
 
-        return f
+        return wrapper
 
     return decorator(func) if func else decorator
