@@ -676,6 +676,8 @@ class AssistantAgent(AgentWorkflowBase):
         """
         try:
             span = trace.get_current_span()
+            # TODO
+            logger.info(f"Processing broadcast message: {message}")
 
             # Extract metadata safely from message["_message_metadata"]
             metadata = message.get("_message_metadata", {})
