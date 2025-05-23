@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 from typing import Any, Dict, List, Optional, Union
 
+from dapr_agents.agent.telemetry.otel import restore_otel_context
 from dapr_agents.types.exceptions import AgentToolExecutorError, ToolError
 from pydantic import Field
 
@@ -675,10 +676,6 @@ class AssistantAgent(AgentWorkflowBase):
             None: The function updates the agent's memory and ignores unwanted messages.
         """
         try:
-            span = trace.get_current_span()
-            # TODO
-            logger.info(f"Processing broadcast message: {message}")
-
             # Extract metadata safely from message["_message_metadata"]
             metadata = message.get("_message_metadata", {})
 
@@ -687,6 +684,18 @@ class AssistantAgent(AgentWorkflowBase):
                     f"{self.name} received a broadcast message with invalid metadata format. Ignoring."
                 )
                 return
+
+            # Attempt to extract OpenTelemetry context from the message headers
+            if "traceparent" in metadata["headers"]:
+                ctx = {
+                    "traceparent": metadata["headers"]["traceparent"],
+                    "tracestate": metadata["headers"].get("tracestate"),
+                }
+                otel_context = restore_otel_context(ctx)
+            else:
+                otel_context = restore_otel_context(otel_context)
+
+            span = trace.get_current_span(context=otel_context)
 
             source = metadata.get("source", "unknown_source")
             message_type = metadata.get("type", "unknown_type")
