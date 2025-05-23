@@ -207,13 +207,7 @@ class AssistantAgent(AgentWorkflowBase):
                     parallel_span.set_attribute(
                         "dapr_agents.tool.calls", len(tool_calls)
                     )
-                    try:
-                        yield self.when_all(parallel_tasks)
-                    except ValueError as e:
-                        # suppress the error
-                        # ValueError: <Token var=<ContextVar name='current_context' default={} at 0x..> at 0x..> was created in a different Context
-                        logger.info(f"Suppressing ValueError: {e}")
-                        pass
+                    yield self.when_all(parallel_tasks)
             else:
                 # Fall back if no tracer is available
                 span.add_event(
