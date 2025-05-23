@@ -8,6 +8,7 @@ from dapr_agents.workflow.messaging.utils import (
 import functools
 from opentelemetry import context
 from opentelemetry.trace import Status, StatusCode
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -46,35 +47,7 @@ def message_router(
             f"@message_router: '{f.__name__}' => models {[m.__name__ for m in message_models]}"
         )
 
-        @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            otel_context = kwargs.get("otel_context", None)
-            if not otel_context:
-                otel_context = context.get_current()
-                kwargs["otel_context"] = otel_context
-
-            self_obj = args[0] if args else None
-            tracer = getattr(self_obj, "_tracer", None)
-
-            if tracer:
-                with tracer.start_as_current_span(
-                    f"message_handler_{f.__name__}",
-                    context=otel_context,
-                    end_on_exit=True,
-                ) as span:
-                    span.set_attribute("handler.name", f.__name__)
-
-                    try:
-                        return f(*args, **kwargs)
-                    except Exception as e:
-                        span.set_status(Status(StatusCode.ERROR))
-                        span.record_exception(e)
-                        raise
-            else:
-                return f(*args, **kwargs)
-
-        wrapper._is_message_handler = True
-        wrapper._message_router_data = deepcopy(
+        router_metadata = deepcopy(
             {
                 "pubsub": pubsub,
                 "topic": topic,
@@ -86,10 +59,90 @@ def message_router(
             }
         )
 
-        if is_workflow:
-            wrapper._is_workflow = True
-            wrapper._workflow_name = workflow_name
+        is_async = inspect.iscoroutinefunction(f)
 
-        return wrapper
+        if is_async:
+
+            @functools.wraps(f)
+            async def async_wrapper(*args, **kwargs):
+                otel_context = kwargs.get("otel_context", None)
+                if not otel_context:
+                    otel_context = context.get_current()
+                    kwargs["otel_context"] = otel_context
+
+                self_obj = args[0] if args else None
+                tracer = getattr(self_obj, "_tracer", None)
+
+                if tracer:
+                    with tracer.start_as_current_span(
+                        f"message_handler_{f.__name__}",
+                        context=otel_context,
+                        end_on_exit=True,
+                    ) as span:
+                        span.set_attribute("handler.name", f.__name__)
+                        if pubsub:
+                            span.set_attribute("pubsub.name", pubsub)
+                        if topic:
+                            span.set_attribute("pubsub.topic", topic)
+
+                        try:
+                            return await f(*args, **kwargs)
+                        except Exception as e:
+                            span.set_status(Status(StatusCode.ERROR))
+                            span.record_exception(e)
+                            raise
+                else:
+                    return await f(*args, **kwargs)
+
+            async_wrapper._is_message_handler = True
+            async_wrapper._message_router_data = router_metadata
+
+            if is_workflow:
+                async_wrapper._is_workflow = True
+                async_wrapper._workflow_name = workflow_name
+
+            return async_wrapper
+
+        else:
+
+            @functools.wraps(f)
+            def sync_wrapper(*args, **kwargs):
+                otel_context = kwargs.get("otel_context", None)
+                if not otel_context:
+                    otel_context = context.get_current()
+                    kwargs["otel_context"] = otel_context
+
+                self_obj = args[0] if args else None
+                tracer = getattr(self_obj, "_tracer", None)
+
+                if tracer:
+                    with tracer.start_as_current_span(
+                        f"message_handler_{f.__name__}",
+                        context=otel_context,
+                        end_on_exit=True,
+                    ) as span:
+                        span.set_attribute("handler.name", f.__name__)
+                        if pubsub:
+                            span.set_attribute("pubsub.name", pubsub)
+                        if topic:
+                            span.set_attribute("pubsub.topic", topic)
+
+                        try:
+                            return f(*args, **kwargs)
+                        except Exception as e:
+                            span.set_status(Status(StatusCode.ERROR))
+                            span.record_exception(e)
+                            raise
+                else:
+                    return f(*args, **kwargs)
+
+            sync_wrapper._is_message_handler = True
+            sync_wrapper._message_router_data = router_metadata
+
+            if is_workflow:
+                sync_wrapper._is_workflow = True
+                sync_wrapper._workflow_name = workflow_name
+
+            return sync_wrapper
 
     return decorator(func) if func else decorator
