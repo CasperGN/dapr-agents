@@ -99,8 +99,9 @@ class AssistantAgent(AgentWorkflowBase):
         """
         Executes a tool-calling workflow, determining the task source (either an agent or an external user).
         """
-
-        span = trace.get_current_span(context=restore_otel_context(otel_context))
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+        span = trace.get_current_span(context=otel_context)
 
         # Step 0: Retrieve task and iteration input
         task = message.get("task")
@@ -298,7 +299,7 @@ class AssistantAgent(AgentWorkflowBase):
         self,
         instance_id: str,
         task: Union[str, Dict[str, Any]] = None,
-        otel_context: Dict[str, Any] = None,
+        otel_context: Union[Context, Dict[str, Any]] = {},
     ) -> ChatCompletion:
         """
         Generates a response using a language model based on the provided task input.
@@ -313,7 +314,9 @@ class AssistantAgent(AgentWorkflowBase):
         """
 
         # TODO: Finish me!!
-        span = span = trace.get_current_span(context=restore_otel_context(otel_context))
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+        span = span = trace.get_current_span(context=otel_context)
 
         # Construct prompt messages
         messages = self.construct_messages(task or {})
@@ -430,7 +433,7 @@ class AssistantAgent(AgentWorkflowBase):
         self,
         instance_id: str,
         tool_call: Dict[str, Any],
-        otel_context: Dict[str, Any] = None,
+        otel_context: Union[Context, Dict[str, Any]] = {},
     ):
         """
         Executes a tool call by invoking the specified function with the provided arguments.
@@ -443,7 +446,9 @@ class AssistantAgent(AgentWorkflowBase):
             AgentError: If the tool call is malformed or execution fails.
         """
 
-        span = span = trace.get_current_span(context=restore_otel_context(otel_context))
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+        span = span = trace.get_current_span(context=otel_context)
         span.set_attribute("dapr_agents.workflow.id", instance_id)
 
         function_details = tool_call.get("function", {})
@@ -587,7 +592,7 @@ class AssistantAgent(AgentWorkflowBase):
         message: Optional[Dict[str, Any]] = None,
         tool_message: Optional[Dict[str, Any]] = None,
         final_output: Optional[str] = None,
-        otel_context: Dict[str, Any] = None,
+        otel_context: Union[Context, Dict[str, Any]] = {},
     ):
         """
         Updates the workflow state by appending a new message or setting the final output.
@@ -601,7 +606,9 @@ class AssistantAgent(AgentWorkflowBase):
         Raises:
             ValueError: If no workflow entry is found for the given instance_id.
         """
-        span = span = trace.get_current_span(context=restore_otel_context(otel_context))
+        if isinstance(otel_context, dict):
+            otel_context = restore_otel_context(otel_context)
+        span = span = trace.get_current_span(context=otel_context)
         span.set_attribute("dapr_agents.workflow.id", instance_id)
         span.set_attribute(
             "dapr_agents.update.type",
@@ -663,7 +670,9 @@ class AssistantAgent(AgentWorkflowBase):
 
     @message_router(broadcast=True)
     async def process_broadcast_message(
-        self, message: BroadcastMessage, otel_context: Dict[str, Any] = None
+        self,
+        message: BroadcastMessage,
+        otel_context: Union[Context, Dict[str, Any]] = {},
     ):
         """
         Processes a broadcast message, filtering out messages sent by the same agent
@@ -693,7 +702,8 @@ class AssistantAgent(AgentWorkflowBase):
                 }
                 otel_context = restore_otel_context(ctx)
             else:
-                otel_context = restore_otel_context(otel_context)
+                if isinstance(otel_context, dict):
+                    otel_context = restore_otel_context(otel_context)
 
             span = trace.get_current_span(context=otel_context)
 
