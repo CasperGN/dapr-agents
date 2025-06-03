@@ -62,7 +62,7 @@ jobs:
         pip install setuptools wheel tox
     - name: Check Typing
       run: |
-        tox -e type
+        tox -e mypy
 
   test:
     needs: build
