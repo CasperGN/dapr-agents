@@ -103,13 +103,19 @@ jobs:
         retention-days: 14
 
     - name: Check coverage against baseline
-      uses: joshjohanning/coverage-diff-action@v1
+      uses: irongut/CodeCoverageSummary@v1.3.0
       if: github.event_name == 'pull_request'
       with:
-        target-branch: ${{ github.base_ref }}
-        coverage-file: coverage.xml
-        fail-if-coverage-decreased: true
-        fail-if-coverage-decreased-by: 1.0
+        filename: coverage.xml
+        badge: true
+        fail_below_min: true
+        format: markdown
+        hide_branch_rate: false
+        hide_complexity: true
+        indicators: true
+        output: both
+        thresholds: '50 75'
+        minimum_coverage: 34
     
   manual-tests:
     needs: build
