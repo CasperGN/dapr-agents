@@ -1,0 +1,123 @@
+name: CI - Lint, Build and Test
+
+on:
+  push:
+    branches:
+      - feature/*
+      - feat/*
+      - bugfix/*
+      - hotfix/*
+      - fix/*
+  pull_request:
+    branches:
+      - main
+      - feature/*
+      - release-*
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel tox
+    - name: Run Autoformatter
+      run: |
+        tox -e ruff
+        statusResult=$(git status -u --porcelain)
+        if [ -z $statusResult ]
+        then
+            exit 0
+        else
+            echo "Source files are not formatted correctly. Run 'tox -e ruff' to autoformat."
+            exit 1
+        fi
+    - name: Run Linter
+      run: |
+        tox -e flake8
+
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python_ver: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python_ver }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python_ver }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel tox
+    - name: Check Typing
+      run: |
+        tox -e type
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.13']
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pytest pytest-mock pytest-cov
+        # Create test virtual environment for isolation (needed for telemetry tests)
+        python -m venv testvenv
+        source testvenv/bin/activate
+        pip install pytest pytest-mock pytest-cov
+    
+    - name: Run all tests with coverage
+      run: |
+        source testvenv/bin/activate
+        # Run all tests in the tests directory with coverage
+        python -m pytest tests/ -v --cov=tests --cov=dapr_agents --cov-report=term-missing
+    
+  manual-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail the workflow if manual tests fail
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: Try to run manual tests
+      run: |
+        python -m pip install --upgrade pip
+        # Try to install the package with all dependencies
+        if pip install -e . &> /dev/null; then
+          echo "Running manual telemetry tests"
+          python tests/test_otel_manual.py
+        else
+          echo "Skipping manual tests due to dependency issues"
+          # Don't fail the build - these tests are optional
+          exit 0
+        fi
