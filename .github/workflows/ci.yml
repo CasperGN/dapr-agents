@@ -93,7 +93,23 @@ jobs:
       run: |
         source testvenv/bin/activate
         # Run all tests in the tests directory with coverage
-        python -m pytest tests/ -v --cov=tests --cov=dapr_agents --cov-report=term-missing
+        python -m pytest tests/ -v --cov=tests --cov=dapr_agents --cov-report=term-missing --cov-report=xml
+
+    - name: Store coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ matrix.python-version }}
+        path: coverage.xml
+        retention-days: 14
+
+    - name: Check coverage against baseline
+      uses: joshjohanning/coverage-diff-action@v1
+      if: github.event_name == 'pull_request'
+      with:
+        target-branch: ${{ github.base_ref }}
+        coverage-file: coverage.xml
+        fail-if-coverage-decreased: true
+        fail-if-coverage-decreased-by: 1.0
     
   manual-tests:
     needs: build

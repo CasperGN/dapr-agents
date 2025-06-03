@@ -16,9 +16,9 @@ huggingface_hub==0.27.1
 numpy==2.2.2
 mypy==1.15.0
 mcp==1.7.1
-opentelemetry-distro==1.22.0
-opentelemetry-exporter-otlp==1.22.0
-opentelemetry-instrumentation-requests==0.44b0
-opentelemetry-instrumentation-fastapi==0.44b0
-opentelemetry-instrumentation-starlette==0.44b0
-opentelemetry-instrumentation-asyncio==0.44b0
+opentelemetry-distro==0.53b1
+opentelemetry-exporter-otlp==1.32.1
+opentelemetry-instrumentation-requests==0.53b1
+opentelemetry-instrumentation-fastapi==0.53b1
+opentelemetry-instrumentation-starlette==0.53b1
+opentelemetry-instrumentation-asyncio==0.53b1

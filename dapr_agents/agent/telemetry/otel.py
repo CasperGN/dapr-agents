@@ -3,13 +3,13 @@ import os
 import platform
 import socket
 import sys
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 import functools
 import logging
 import uuid
 
-from opentelemetry import trace, context
+from opentelemetry import context
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.metrics import set_meter_provider
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
@@ -23,14 +23,14 @@ from opentelemetry.sdk.resources import HOST_NAME, OS_TYPE, OS_VERSION
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, ParentBased
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import set_tracer_provider, Status, StatusCode
+from opentelemetry.trace import set_tracer_provider
 from opentelemetry.context.context import Context
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
-from opentelemetry.trace.propagation import baggage, composite
+from opentelemetry.propagate import composite
 
 logger = logging.getLogger(__name__)
 
@@ -52,17 +52,19 @@ class DaprAgentsOTel:
         # Configure OpenTelemetry
         self.service_name = service_name or os.getenv(ENV_SERVICE_NAME, "dapr-agents")
         self.otlp_endpoint = otlp_endpoint
-        self.deployment_environment = os.getenv(ENV_DEPLOYMENT_ENVIRONMENT, "development")
+        self.deployment_environment = os.getenv(
+            ENV_DEPLOYMENT_ENVIRONMENT, "development"
+        )
         self.service_version = os.getenv(ENV_SERVICE_VERSION, "unknown")
-        
+
         # Exporters enabled by default
         self.traces_enabled = os.getenv(ENV_TRACE_EXPORTER, "otlp") != "none"
         self.metrics_enabled = os.getenv(ENV_METRIC_EXPORTER, "otlp") != "none"
         self.logs_enabled = os.getenv(ENV_LOG_EXPORTER, "otlp") != "none"
-        
+
         # Initialize resources
         self.setup_resources()
-        
+
         # Set up composite propagator for better interoperability
         self._setup_propagators()
 
@@ -76,7 +78,7 @@ class DaprAgentsOTel:
             hostname = socket.gethostname()
         except Exception:
             hostname = "unknown"
-            
+
         # Create resource with detailed attributes
         self._resource = Resource.create(
             attributes={
@@ -85,16 +87,13 @@ class DaprAgentsOTel:
                 SERVICE_INSTANCE_ID: str(uuid.uuid4()),
                 SERVICE_VERSION: self.service_version,
                 DEPLOYMENT_ENVIRONMENT: self.deployment_environment,
-                
                 # Host information
                 HOST_NAME: hostname,
                 OS_TYPE: platform.system(),
                 OS_VERSION: platform.version(),
-                
                 # Runtime information
                 PROCESS_RUNTIME_NAME: "python",
                 PROCESS_RUNTIME_VERSION: platform.python_version(),
-                
                 # Additional Dapr-specific attributes
                 "dapr.agents.version": self.service_version,
             }
@@ -106,13 +105,13 @@ class DaprAgentsOTel:
     ) -> MeterProvider:
         """
         Returns a `MeterProvider` that is configured to export metrics using the `PeriodicExportingMetricReader`.
-        
+
         Features:
         - Configurable export interval via OTEL_METRIC_EXPORT_INTERVAL (default: 60000ms)
         - Sets the global OpenTelemetry meter provider
         - Supports both HTTP and HTTPS endpoints
         - Graceful error handling with console fallback
-        
+
         Returns:
             Configured MeterProvider instance
         """
@@ -124,35 +123,45 @@ class DaprAgentsOTel:
 
         # Configure export interval (in milliseconds)
         export_interval_ms = int(os.getenv("OTEL_METRIC_EXPORT_INTERVAL", "60000"))
-        
+
         # Ensure the endpoint is set correctly
         try:
             endpoint = self._endpoint_validator(
                 endpoint=self.otlp_endpoint if otlp_endpoint == "" else otlp_endpoint,
                 telemetry_type="metrics",
             )
-        except ValueError as e:
-            logger.warning(f"Error configuring metrics endpoint: {e}. Using console exporter.")
-            # Fall back to console exporter if endpoint is not configured
-            from opentelemetry.sdk.metrics.export import ConsoleMetricExporter
-            metric_exporter = ConsoleMetricExporter()
-        else:
             # Configure the OTLP exporter
-            metric_exporter = OTLPMetricExporter(endpoint=str(endpoint))
+            from opentelemetry.sdk.metrics.export import MetricExporter
+
+            metric_exporter = cast(
+                MetricExporter, OTLPMetricExporter(endpoint=str(endpoint))
+            )
+        except ValueError as e:
+            # Use OTLP exporter with default endpoint if none provided
+            logger.warning(
+                f"Error configuring metrics endpoint: {e}. Using default OTLP endpoint."
+            )
+            from opentelemetry.sdk.metrics.export import MetricExporter
+
+            # Default to http://localhost:4318/v1/metrics if no endpoint provided
+            metric_exporter = cast(
+                MetricExporter,
+                OTLPMetricExporter(endpoint="http://localhost:4318/v1/metrics"),
+            )
 
         # Create and configure the metric reader with the configured interval
         metric_reader = PeriodicExportingMetricReader(
-            metric_exporter,
-            export_interval_millis=export_interval_ms
+            metric_exporter, export_interval_millis=export_interval_ms
         )
-        
+
         # Initialize meter provider
         meter_provider = MeterProvider(
-            resource=self._resource, 
-            metric_readers=[metric_reader]
+            resource=self._resource, metric_readers=[metric_reader]
         )
         set_meter_provider(meter_provider)
-        logger.info(f"Initialized meter provider with export interval {export_interval_ms}ms")
+        logger.info(
+            f"Initialized meter provider with export interval {export_interval_ms}ms"
+        )
         return meter_provider
 
     def create_and_instrument_tracer_provider(
@@ -161,14 +170,14 @@ class DaprAgentsOTel:
     ) -> TracerProvider:
         """
         Returns a `TracerProvider` that is configured to export traces using the `BatchSpanProcessor`.
-        
+
         Features:
         - Uses ParentBased sampling with TraceIdRatioBased as root sampling strategy
         - Configurable sampling ratio via OTEL_TRACES_SAMPLER_ARG (default: 1.0)
         - Configurable batch export size via OTEL_TRACES_EXPORT_BATCH_SIZE (default: 512)
         - Sets the global OpenTelemetry tracer provider
         - Supports both HTTP and HTTPS endpoints
-        
+
         Returns:
             Configured TracerProvider instance
         """
@@ -184,22 +193,37 @@ class DaprAgentsOTel:
                 endpoint=self.otlp_endpoint if otlp_endpoint == "" else otlp_endpoint,
                 telemetry_type="traces",
             )
-        except ValueError as e:
-            logger.warning(f"Error configuring trace endpoint: {e}. Using console exporter.")
-            from opentelemetry.sdk.trace.export import ConsoleSpanExporter
-            trace_exporter = ConsoleSpanExporter()
-        else:
             # Configure the OTLP exporter
-            trace_exporter = OTLPSpanExporter(endpoint=str(endpoint))
-            
+            from opentelemetry.sdk.trace.export import SpanExporter
+
+            trace_exporter = cast(
+                SpanExporter, OTLPSpanExporter(endpoint=str(endpoint))
+            )
+        except ValueError as e:
+            # Use OTLP exporter with default endpoint if none provided
+            logger.warning(
+                f"Error configuring trace endpoint: {e}. Using default OTLP endpoint."
+            )
+            from opentelemetry.sdk.trace.export import SpanExporter
+
+            # Default to http://localhost:4318/v1/traces if no endpoint provided
+            trace_exporter = cast(
+                SpanExporter,
+                OTLPSpanExporter(endpoint="http://localhost:4318/v1/traces"),
+            )
+
         # Configure sampling strategy
         try:
             sampling_ratio = float(os.getenv("OTEL_TRACES_SAMPLER_ARG", "1.0"))
             if sampling_ratio > 1.0 or sampling_ratio < 0.0:
-                logging.warning("OTEL_TRACES_SAMPLER_ARG must be between 0.0 and 1.0. Defaulting to 1.0.")
+                logging.warning(
+                    "OTEL_TRACES_SAMPLER_ARG must be between 0.0 and 1.0. Defaulting to 1.0."
+                )
                 sampling_ratio = 1.0
         except ValueError:
-            logging.warning("OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 1.0.")
+            logging.warning(
+                "OTEL_TRACES_SAMPLER_ARG is not a valid float. Defaulting to 1.0."
+            )
             sampling_ratio = 1.0
 
         # Always sample if parent span is sampled, otherwise use probability sampling
@@ -209,14 +233,14 @@ class DaprAgentsOTel:
         # Configure batch processing
         max_export_batch_size = int(os.getenv("OTEL_TRACES_EXPORT_BATCH_SIZE", "512"))
         export_timeout_ms = int(os.getenv("OTEL_TRACES_EXPORT_TIMEOUT", "30000"))
-        
+
         # Create span processor with optimized settings
         tracer_processor = BatchSpanProcessor(
             trace_exporter,
             max_export_batch_size=max_export_batch_size,
-            export_timeout_millis=export_timeout_ms
+            export_timeout_millis=export_timeout_ms,
         )
-        
+
         # Initialize tracer provider
         tracer_provider = TracerProvider(resource=self._resource, sampler=sampler)
         tracer_provider.add_span_processor(tracer_processor)
@@ -231,56 +255,64 @@ class DaprAgentsOTel:
     ) -> LoggerProvider:
         """
         Returns a `LoggerProvider` that is configured to export logs using the `BatchLogProcessor`.
-        
+
         Features:
         - Configurable batch size via OTEL_LOGS_EXPORT_BATCH_SIZE (default: 512)
         - Sets the global OpenTelemetry logging provider
         - Configures Python's standard logging to use OpenTelemetry
         - Supports both HTTP and HTTPS endpoints
         - Graceful error handling with console fallback
-        
+
         Args:
             logger: Logger instance to add OpenTelemetry handler to
             otlp_endpoint: Optional custom endpoint for logs export
-            
+
         Returns:
             Configured LoggerProvider instance
         """
         if not self.logs_enabled:
-            logger.info("Logging telemetry is disabled. Creating default logger provider.")
+            logger.info(
+                "Logging telemetry is disabled. Creating default logger provider."
+            )
             logging_provider = LoggerProvider(resource=self._resource)
             set_logger_provider(logging_provider)
             return logging_provider
 
         # Configure batch size
         batch_size = int(os.getenv("OTEL_LOGS_EXPORT_BATCH_SIZE", "512"))
-        
+
         # Configure log level for OpenTelemetry logs
         log_level = os.getenv("OTEL_LOG_LEVEL", "INFO")
         numeric_level = getattr(logging, log_level.upper(), logging.INFO)
         logger.setLevel(numeric_level)
-        
+
         # Ensure the endpoint is set correctly
         try:
             endpoint = self._endpoint_validator(
                 endpoint=self.otlp_endpoint if otlp_endpoint == "" else otlp_endpoint,
                 telemetry_type="logs",
             )
-        except ValueError as e:
-            logger.warning(f"Error configuring logs endpoint: {e}. Using console exporter.")
-            # Fall back to console exporter if endpoint is not configured
-            from opentelemetry.sdk._logs.export import ConsoleLogExporter
-            log_exporter = ConsoleLogExporter()
-        else:
             # Configure the OTLP exporter
-            log_exporter = OTLPLogExporter(endpoint=str(endpoint))
+            from opentelemetry.sdk._logs.export import LogExporter
+
+            log_exporter = cast(LogExporter, OTLPLogExporter(endpoint=str(endpoint)))
+        except ValueError as e:
+            # Use OTLP exporter with default endpoint if none provided
+            logger.warning(
+                f"Error configuring logs endpoint: {e}. Using default OTLP endpoint."
+            )
+            from opentelemetry.sdk._logs.export import LogExporter
+
+            # Default to http://localhost:4318/v1/logs if no endpoint provided
+            log_exporter = cast(
+                LogExporter, OTLPLogExporter(endpoint="http://localhost:4318/v1/logs")
+            )
 
         # Create and configure the log processor with the configured batch size
         log_processor = BatchLogRecordProcessor(
-            log_exporter, 
-            max_export_batch_size=batch_size
+            log_exporter, max_export_batch_size=batch_size
         )
-        
+
         # Initialize logger provider
         logging_provider = LoggerProvider(resource=self._resource)
         logging_provider.add_log_record_processor(log_processor)
@@ -289,7 +321,7 @@ class DaprAgentsOTel:
         # Add OpenTelemetry handler to the logger
         handler = LoggingHandler(logger_provider=logging_provider)
         logger.addHandler(handler)
-        
+
         logger.info(f"Initialized logger provider with batch size {batch_size}")
         return logging_provider
 
@@ -313,14 +345,14 @@ class DaprAgentsOTel:
         """
         Validates and formats the endpoint URL for the specified telemetry type.
         Supports both HTTP and HTTPS protocols.
-        
+
         Args:
             endpoint: The base endpoint URL
             telemetry_type: Type of telemetry (traces, metrics, logs)
-            
+
         Returns:
             Properly formatted endpoint URL
-            
+
         Raises:
             ValueError: If the endpoint is not provided
         """
@@ -332,12 +364,12 @@ class DaprAgentsOTel:
         # Add telemetry type path if not present
         if not endpoint.endswith(f"/v1/{telemetry_type}"):
             endpoint = f"{endpoint}/v1/{telemetry_type}"
-            
+
         # Add protocol if missing
         if not (endpoint.startswith("http://") or endpoint.startswith("https://")):
             # Default to HTTP
             endpoint = f"http://{endpoint}"
-            
+
         logger.info(f"OpenTelemetry {telemetry_type} endpoint: {endpoint}")
         return endpoint
 
@@ -356,7 +388,7 @@ def restore_otel_context(otel_context: Union[Context, dict[str, str]]) -> Contex
 
     Returns:
         Context object that can be used with tracer.start_as_current_span()
-        
+
     Raises:
         ValueError: If otel_context is invalid
     """
@@ -368,7 +400,9 @@ def restore_otel_context(otel_context: Union[Context, dict[str, str]]) -> Contex
             return Context()
         return _propagator.extract(carrier=otel_context)
     except Exception as e:
-        logger.warning(f"Error restoring OpenTelemetry context: {e}. Creating new context.")
+        logger.warning(
+            f"Error restoring OpenTelemetry context: {e}. Creating new context."
+        )
         return Context()
 
 
@@ -376,7 +410,7 @@ def extract_otel_context() -> dict[str, str]:
     """
     Extract current OpenTelemetry context for cross-boundary propagation.
     Returns a format that can be properly serialized by Dapr workflows.
-    
+
     Returns:
         Dictionary containing the serialized context
     """
@@ -385,5 +419,7 @@ def extract_otel_context() -> dict[str, str]:
         _propagator.inject(carrier=otel_context, context=context.get_current())
         return otel_context
     except Exception as e:
-        logger.warning(f"Error extracting OpenTelemetry context: {e}. Returning empty context.")
+        logger.warning(
+            f"Error extracting OpenTelemetry context: {e}. Returning empty context."
+        )
         return {}
