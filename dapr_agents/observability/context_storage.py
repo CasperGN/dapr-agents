@@ -98,7 +98,7 @@ class WorkflowContextStorage:
     def create_resumed_workflow_context(
         self,
         instance_id: str,
-        agent_name: Optional[str] = None,
+        agent_name: Optional[str] = "",
         stored_trace_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
