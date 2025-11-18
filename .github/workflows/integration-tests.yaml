@@ -77,7 +77,7 @@ jobs:
         python-version: ${{ matrix.python_ver }}
     
     - name: Set up Docker
-      uses: docker/setup-docker-action@v3
+      uses: docker/setup-docker-action@v4
     
     - name: Install Dapr CLI
       run: |
