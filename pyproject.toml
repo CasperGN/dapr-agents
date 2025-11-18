@@ -40,6 +40,10 @@ dependencies = [
     "posthog<6.0.0",
     "protobuf>=6.31.0,<7.0.0",
     "docker>=7.1.0",
+    "opentelemetry-sdk>=1.35.0",
+    "opentelemetry-exporter-otlp>=1.35.0",
+    "opentelemetry-instrumentation>=0.56b0",
+    "openinference-instrumentation>=0.1.38",
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
