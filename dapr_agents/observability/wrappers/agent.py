@@ -125,7 +125,7 @@ class AgentRunWrapper:
             dict: Comprehensive span attributes including agent metadata, tool information,
                   processed input value, and OpenInference-compatible attribute structure
         """
-        attributes = {
+        attributes: dict[str, Any] = {
             OPENINFERENCE_SPAN_KIND: AGENT,
             INPUT_MIME_TYPE: "application/json",
             OUTPUT_MIME_TYPE: "application/json",
