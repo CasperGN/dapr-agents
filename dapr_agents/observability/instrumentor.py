@@ -61,6 +61,8 @@ from .wrappers import (
     WorkflowActivityRegistrationWrapper,
 )
 
+from opentelemetry.trace import Tracer
+
 logger = logging.getLogger(__name__)
 
 # ============================================================================
@@ -110,7 +112,7 @@ class DaprAgentsInstrumentor(BaseInstrumentor):
         Sets up the instrumentor with no active tracer until instrument() is called.
         """
         super().__init__()
-        self._tracer = None
+        self._tracer: Tracer | None = None
 
     def instrumentation_dependencies(self) -> Collection[str]:
         """
