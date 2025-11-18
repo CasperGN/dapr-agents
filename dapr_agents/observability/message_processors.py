@@ -23,7 +23,6 @@ from .constants import (
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
     MESSAGE_ROLE,
-    OPENINFERENCE_AVAILABLE,
     safe_json_dumps,
 )
 
