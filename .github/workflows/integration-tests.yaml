@@ -99,11 +99,19 @@ jobs:
         uv pip install -e .
         uv pip install -e ".[test]"
 
+    - name: Free up disk space
+      run: |
+        echo "=== Disk space before cleanup ==="
+        df -h
+        sudo apt-get clean || true=
+        find quickstarts -type d -name "ephemeral_test_venv" -exec rm -rf {} + 2>/dev/null || true
+        echo "=== Disk space after cleanup ==="
+        df -h
+
     - name: Run Integration Tests
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        
         uv run pytest -m integration -v tests/integration/quickstarts
         # TODO: In future, run all integration tests in parallel (one file per quickstart directory)
         # -n auto uses all available CPUs, or specify -n 4 for fixed number
