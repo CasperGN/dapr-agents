@@ -224,6 +224,7 @@ class AgentTool(BaseModel):
                 logger.debug(f"Time: {datetime.now()}")  # Debug timestamp
                 result = toolbox_tool(**kwargs)
                 logger.debug(f"Time after tool call: {datetime.now()}")  # Debug timestamp
+                logger.debug(f"Type of result: {type(result)}")  # Debug result type
                 logger.debug(f"Length of result: {len(str(result))}")  # Debug result length
                 for res in result:
                     logger.debug(f"Result content chunk: {res}")  # Debug result content
