@@ -220,12 +220,17 @@ class AgentTool(BaseModel):
         def executor(**kwargs: Any) -> Any:
             try:
                 logger.debug(f"Calling Toolbox tool '{tool_name}' with args: {kwargs}")
+                from datetime import datetime
+                logger.debug(f"Time: {datetime.now()}")  # Debug timestamp
                 result = toolbox_tool(**kwargs)
+                logger.debug(f"Time after tool call: {datetime.now()}")  # Debug timestamp
+                logger.debug(f"Tool '{tool_name}' returned: {result}")
                 tool_result = CallToolResult(
                     isError=False,
                     content=[TextContent(type="text", text=str(result))],
                     structuredContent={},
                 )
+                logger.debug(f"Tool '{tool_name}' CallToolResult: {tool_result}")
                 return tool_result
             except (ValidationError, ToolError, Exception) as e:
                 err_type = type(e).__name__
