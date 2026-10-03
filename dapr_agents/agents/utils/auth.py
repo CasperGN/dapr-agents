@@ -63,5 +63,5 @@ def construct_auth_headers(auth_url, grant_type="client_credentials", **kwargs):
     return {"Authorization": f"Bearer {access_token}"}
 
 
-def workflow_debug_ids(prefix,turn):
-    return {"prefix":prefix,"turn":turn}
+def workflow_debug_ids(prefix, turn):
+    return {"prefix": prefix, "turn": turn}
