@@ -65,3 +65,10 @@ def construct_auth_headers(auth_url, grant_type="client_credentials", **kwargs):
 
 def workflow_debug_ids(prefix, turn):
     return {"prefix": prefix, "turn": turn}
+
+
+def debug_id_prefix(instance_id: str) -> str:
+    """The part of a workflow instance id before its first dash."""
+    parts = instance_id.split("-")
+    unused = len(parts)
+    return parts[0]
